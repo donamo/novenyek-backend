@@ -1,0 +1,237 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum RoomOrientation {
+  north
+  south
+  east
+  west
+  mixed
+}
+
+enum LightLevel {
+  low
+  medium
+  high
+}
+
+enum HumidityLevel {
+  low
+  normal
+  high
+}
+
+enum PlantSize {
+  small
+  medium
+  large
+}
+
+enum PlantStatus {
+  active
+  inactive
+  dead
+  gifted
+}
+
+enum PlantEventType {
+  watering
+  repotting
+  fertilizing
+  pruning
+  move
+  treatment
+  note
+  photo
+  ai_analysis
+}
+
+enum OverallStatus {
+  good
+  medium
+  bad
+  unknown
+}
+
+enum PestSuspicion {
+  none
+  possible
+  yes
+  unknown
+}
+
+enum AiProvider {
+  openai
+  gemini
+  openrouter
+  mock
+}
+
+enum AiConfidence {
+  low
+  medium
+  high
+}
+
+model User {
+  id            String              @id @default(cuid())
+  googleSubject String              @unique
+  email         String
+  displayName   String?
+  isEnabled     Boolean             @default(false)
+  rooms         Room[]
+  plants        Plant[]
+  requirements  PlantRequirement[]
+  events        PlantEvent[]
+  statusReports PlantStatusReport[]
+  photos        PlantPhoto[]
+  aiAnalyses    AiAnalysis[]
+  createdAt     DateTime            @default(now())
+  updatedAt     DateTime            @updatedAt
+}
+
+model Room {
+  id                 String          @id @default(uuid())
+  ownerUserId        String
+  owner              User            @relation(fields: [ownerUserId], references: [id], onDelete: Cascade)
+  name               String
+  orientation        RoomOrientation?
+  lightLevel         LightLevel?
+  humidityLevel      HumidityLevel?
+  averageTemperature String?
+  notes              String?
+  plants             Plant[]
+  createdAt          DateTime        @default(now())
+  updatedAt          DateTime        @updatedAt
+
+  @@unique([ownerUserId, name])
+}
+
+model Plant {
+  id                  String              @id @default(uuid())
+  ownerUserId         String
+  owner               User                @relation(fields: [ownerUserId], references: [id], onDelete: Cascade)
+  name                String
+  nickname            String?
+  species             String?
+  category            String?
+  size                PlantSize?
+  potSizeCm           Int?
+  roomId              String?
+  room                Room?               @relation(fields: [roomId], references: [id], onDelete: SetNull)
+  locationDescription String?
+  acquiredAt          DateTime?
+  acquiredFrom        String?
+  status              PlantStatus          @default(active)
+  notes               String?
+  requirement         PlantRequirement?
+  events              PlantEvent[]
+  statusReports       PlantStatusReport[]
+  photos              PlantPhoto[]
+  aiAnalyses          AiAnalysis[]
+  createdAt           DateTime             @default(now())
+  updatedAt           DateTime             @updatedAt
+}
+
+model PlantRequirement {
+  id                 String   @id @default(uuid())
+  ownerUserId        String
+  owner              User     @relation(fields: [ownerUserId], references: [id], onDelete: Cascade)
+  plantId            String   @unique
+  plant              Plant    @relation(fields: [plantId], references: [id], onDelete: Cascade)
+  lightNeed          String?
+  waterNeed          String?
+  humidityNeed       String?
+  temperatureNeed    String?
+  soilNeed           String?
+  fertilizingNeed    String?
+  repottingFrequency String?
+  commonProblems     String?
+  toxicity           String?
+  source             String?
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+}
+
+model PlantEvent {
+  id          String         @id @default(uuid())
+  ownerUserId String
+  owner       User           @relation(fields: [ownerUserId], references: [id], onDelete: Cascade)
+  plantId     String
+  plant       Plant          @relation(fields: [plantId], references: [id], onDelete: Cascade)
+  type        PlantEventType
+  eventDate   DateTime
+  title       String
+  description String?
+  createdAt   DateTime       @default(now())
+}
+
+model PlantStatusReport {
+  id                 String          @id @default(uuid())
+  ownerUserId        String
+  owner              User            @relation(fields: [ownerUserId], references: [id], onDelete: Cascade)
+  plantId            String
+  plant              Plant           @relation(fields: [plantId], references: [id], onDelete: Cascade)
+  reportMonth        String
+  overallStatus      OverallStatus   @default(unknown)
+  leafStatus         String?
+  growthStatus       String?
+  soilStatus         String?
+  pestSuspicion      PestSuspicion?
+  wateringAssessment String?
+  lightAssessment    String?
+  notes              String?
+  aiSummary          String?
+  aiRecommendations  String?
+  photos             PlantPhoto[]
+  aiAnalyses         AiAnalysis[]
+  createdAt          DateTime        @default(now())
+  updatedAt          DateTime        @updatedAt
+
+  @@unique([plantId, reportMonth])
+}
+
+model PlantPhoto {
+  id               String             @id @default(uuid())
+  ownerUserId      String
+  owner            User               @relation(fields: [ownerUserId], references: [id], onDelete: Cascade)
+  plantId          String
+  plant            Plant              @relation(fields: [plantId], references: [id], onDelete: Cascade)
+  statusReportId   String?
+  statusReport     PlantStatusReport? @relation(fields: [statusReportId], references: [id], onDelete: SetNull)
+  filePath         String
+  thumbnailPath    String?
+  originalFilename String?
+  mimeType         String
+  sizeBytes        Int
+  width            Int?
+  height           Int?
+  takenAt          DateTime?
+  uploadedAt       DateTime           @default(now())
+  caption          String?
+}
+
+model AiAnalysis {
+  id              String        @id @default(uuid())
+  ownerUserId     String
+  owner           User          @relation(fields: [ownerUserId], references: [id], onDelete: Cascade)
+  plantId         String
+  plant           Plant         @relation(fields: [plantId], references: [id], onDelete: Cascade)
+  statusReportId  String?
+  statusReport    PlantStatusReport? @relation(fields: [statusReportId], references: [id], onDelete: SetNull)
+  provider        AiProvider
+  model           String
+  promptVersion   String
+  inputPhotoIds   Json
+  rawResponse     Json
+  summary         String
+  recommendations Json
+  confidence      AiConfidence?
+  createdAt       DateTime      @default(now())
+}

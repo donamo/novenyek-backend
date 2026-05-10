@@ -1,0 +1,71 @@
+openapi: 3.0.0
+paths:
+  /auth/me:
+    get:
+      operationId: AuthController_me
+      parameters: []
+      responses:
+        "200":
+          description: ""
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthMeResponse"
+        "401":
+          description: Authentication required
+      tags: &a1
+        - Auth
+  /auth/logout:
+    post:
+      operationId: AuthController_logout
+      parameters: []
+      responses:
+        "200":
+          description: ""
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LogoutResponse"
+        "401":
+          description: Authentication required
+      tags: *a1
+info:
+  title: NovenyNaplo Backend API
+  description: REST API for the NövényNapló / PlantCare Log backend.
+  version: 0.1.0
+  contact: {}
+tags: []
+servers: []
+components:
+  securitySchemes:
+    connect.sid:
+      type: apiKey
+      in: cookie
+      name: connect.sid
+  schemas:
+    AuthMeResponse:
+      type: object
+      properties:
+        id:
+          type: string
+        email:
+          type: string
+        displayName:
+          type: string
+          nullable: true
+        isEnabled:
+          type: boolean
+        isAdmin:
+          type: boolean
+      required:
+        - id
+        - email
+        - isEnabled
+        - isAdmin
+    LogoutResponse:
+      type: object
+      properties:
+        loggedOut:
+          type: boolean
+      required:
+        - loggedOut

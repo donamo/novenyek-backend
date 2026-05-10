@@ -1,0 +1,401 @@
+# ------------------------------------------------------
+# THIS FILE WAS AUTOMATICALLY GENERATED (DO NOT MODIFY)
+# ------------------------------------------------------
+
+type AiAnalysisModel {
+  confidence: AiConfidence
+  createdAt: DateTime!
+  id: ID!
+  inputPhotoIds: [String!]!
+  model: String!
+  ownerUserId: ID!
+  plantId: ID!
+  promptVersion: String!
+  provider: AiProvider!
+  rawResponseJson: String!
+  recommendations: [String!]!
+  statusReportId: ID
+  summary: String!
+}
+
+enum AiConfidence {
+  high
+  low
+  medium
+}
+
+enum AiProvider {
+  gemini
+  mock
+  openai
+  openrouter
+}
+
+input CreateAiAnalysisDto {
+  language: String
+  photoIds: [ID!]!
+  provider: AiProvider
+  statusReportId: ID
+}
+
+input CreatePlantDto {
+  acquiredAt: DateTime
+  acquiredFrom: String
+  category: String
+  locationDescription: String
+  name: String!
+  nickname: String
+  notes: String
+  potSizeCm: Int
+  roomId: ID
+  size: PlantSize
+  species: String
+  status: PlantStatus
+}
+
+input CreatePlantEventDto {
+  description: String
+  eventDate: DateTime!
+  title: String!
+  type: PlantEventType!
+}
+
+input CreatePlantPhotoFromBase64Input {
+  caption: String
+  imageBase64: String!
+  mimeType: String
+  originalFilename: String
+  plantId: ID!
+  statusReportId: ID
+  takenAt: DateTime
+}
+
+input CreatePlantStatusReportDto {
+  aiRecommendations: String
+  aiSummary: String
+  growthStatus: String
+  leafStatus: String
+  lightAssessment: String
+  notes: String
+  overallStatus: OverallStatus
+  pestSuspicion: PestSuspicion
+  reportMonth: String!
+  soilStatus: String
+  wateringAssessment: String
+}
+
+input CreateRoomDto {
+  averageTemperature: String
+  humidityLevel: HumidityLevel
+  lightLevel: LightLevel
+  name: String!
+  notes: String
+  orientation: RoomOrientation
+}
+
+type DashboardModel {
+  currentMonth: String!
+  latestAiAnalyses: [AiAnalysisModel!]!
+  latestStatusReports: [PlantStatusReportModel!]!
+  totals: DashboardTotalsModel!
+}
+
+type DashboardTotalsModel {
+  activePlants: Int!
+  goodStatusReports: Int!
+  missingMonthlyStatus: Int!
+  plants: Int!
+  problematicStatusReports: Int!
+  watchStatusReports: Int!
+}
+
+"""
+A date-time string at UTC, such as 2019-12-03T09:54:33Z, compliant with the date-time format.
+"""
+scalar DateTime
+
+type DeleteResponse {
+  deleted: Boolean!
+}
+
+enum HumidityLevel {
+  high
+  low
+  normal
+}
+
+enum LightLevel {
+  high
+  low
+  medium
+}
+
+type Mutation {
+  createAiAnalysis(input: CreateAiAnalysisDto!, plantId: ID!): AiAnalysisModel!
+  createPlant(input: CreatePlantDto!): PlantModel!
+  createPlantEvent(input: CreatePlantEventDto!, plantId: ID!): PlantEventModel!
+  createPlantPhotoFromBase64(input: CreatePlantPhotoFromBase64Input!): PlantPhotoModel!
+  createPlantStatusReport(input: CreatePlantStatusReportDto!, plantId: ID!): PlantStatusReportModel!
+  createRoom(input: CreateRoomDto!): RoomModel!
+  deletePlant(id: ID!): DeleteResponse!
+  deletePlantEvent(eventId: ID!, plantId: ID!): DeleteResponse!
+  deletePlantPhoto(photoId: ID!): DeleteResponse!
+  deletePlantStatusReport(id: ID!, plantId: ID!): DeleteResponse!
+  deleteRoom(id: ID!): DeleteResponse!
+  updatePlant(id: ID!, input: UpdatePlantDto!): PlantModel!
+  updatePlantEvent(eventId: ID!, input: UpdatePlantEventDto!, plantId: ID!): PlantEventModel!
+  updatePlantStatusReport(id: ID!, input: UpdatePlantStatusReportDto!, plantId: ID!): PlantStatusReportModel!
+  updateRoom(id: ID!, input: UpdateRoomDto!): RoomModel!
+  updateUserEnabled(input: UpdateUserEnabledInput!): UserModel!
+  upsertPlantRequirement(input: UpsertPlantRequirementDto!, plantId: ID!): PlantRequirementModel!
+}
+
+enum OverallStatus {
+  bad
+  good
+  medium
+  unknown
+}
+
+enum PestSuspicion {
+  none
+  possible
+  unknown
+  yes
+}
+
+type PlantCountModel {
+  aiAnalyses: Int!
+  events: Int!
+  photos: Int!
+  statusReports: Int!
+}
+
+type PlantEventModel {
+  createdAt: DateTime!
+  description: String
+  eventDate: DateTime!
+  id: ID!
+  ownerUserId: ID!
+  plantId: ID!
+  title: String!
+  type: PlantEventType!
+}
+
+enum PlantEventType {
+  ai_analysis
+  fertilizing
+  move
+  note
+  photo
+  pruning
+  repotting
+  treatment
+  watering
+}
+
+type PlantModel {
+  _count: PlantCountModel
+  acquiredAt: DateTime
+  acquiredFrom: String
+  category: String
+  createdAt: DateTime!
+  id: ID!
+  locationDescription: String
+  name: String!
+  nickname: String
+  notes: String
+  ownerUserId: ID!
+  potSizeCm: Int
+  room: RoomModel
+  roomId: ID
+  size: PlantSize
+  species: String
+  status: PlantStatus!
+  updatedAt: DateTime!
+}
+
+type PlantPhotoModel {
+  caption: String
+  filePath: String!
+  height: Int
+  id: ID!
+  mimeType: String!
+  originalFilename: String
+  ownerUserId: ID!
+  plantId: ID!
+  sizeBytes: Int!
+  statusReportId: ID
+  takenAt: DateTime
+  thumbnailPath: String
+  uploadedAt: DateTime!
+  width: Int
+}
+
+type PlantRequirementModel {
+  commonProblems: String
+  createdAt: DateTime!
+  fertilizingNeed: String
+  humidityNeed: String
+  id: ID!
+  lightNeed: String
+  ownerUserId: ID!
+  plantId: ID!
+  repottingFrequency: String
+  soilNeed: String
+  source: String
+  temperatureNeed: String
+  toxicity: String
+  updatedAt: DateTime!
+  waterNeed: String
+}
+
+enum PlantSize {
+  large
+  medium
+  small
+}
+
+enum PlantStatus {
+  active
+  dead
+  gifted
+  inactive
+}
+
+type PlantStatusReportModel {
+  aiRecommendations: String
+  aiSummary: String
+  createdAt: DateTime!
+  growthStatus: String
+  id: ID!
+  leafStatus: String
+  lightAssessment: String
+  notes: String
+  overallStatus: OverallStatus!
+  ownerUserId: ID!
+  pestSuspicion: PestSuspicion
+  plantId: ID!
+  reportMonth: String!
+  soilStatus: String
+  updatedAt: DateTime!
+  wateringAssessment: String
+}
+
+type Query {
+  aiAnalysis(id: ID!): AiAnalysisModel!
+  apiStatus: String!
+  dashboard: DashboardModel!
+  me: UserModel!
+  plant(id: ID!): PlantModel!
+  plantAiAnalyses(plantId: ID!): [AiAnalysisModel!]!
+  plantEvents(plantId: ID!): [PlantEventModel!]!
+  plantExportJson(plantId: ID!): String!
+  plantExportMarkdown(plantId: ID!): String!
+  plantPhotos(plantId: ID!): [PlantPhotoModel!]!
+  plantRequirement(plantId: ID!): PlantRequirementModel
+  plantStatusReport(id: ID!, plantId: ID!): PlantStatusReportModel!
+  plantStatusReportPhotos(plantId: ID!, statusReportId: ID!): [PlantPhotoModel!]!
+  plantStatusReports(plantId: ID!): [PlantStatusReportModel!]!
+  plants: [PlantModel!]!
+  room(id: ID!): RoomModel!
+  rooms: [RoomModel!]!
+  users: [UserModel!]!
+}
+
+type RoomCountModel {
+  plants: Int!
+}
+
+type RoomModel {
+  _count: RoomCountModel
+  averageTemperature: String
+  createdAt: DateTime!
+  humidityLevel: HumidityLevel
+  id: ID!
+  lightLevel: LightLevel
+  name: String!
+  notes: String
+  orientation: RoomOrientation
+  ownerUserId: ID!
+  updatedAt: DateTime!
+}
+
+enum RoomOrientation {
+  east
+  mixed
+  north
+  south
+  west
+}
+
+input UpdatePlantDto {
+  acquiredAt: DateTime
+  acquiredFrom: String
+  category: String
+  locationDescription: String
+  name: String
+  nickname: String
+  notes: String
+  potSizeCm: Int
+  roomId: ID
+  size: PlantSize
+  species: String
+  status: PlantStatus
+}
+
+input UpdatePlantEventDto {
+  description: String
+  eventDate: DateTime
+  title: String
+  type: PlantEventType
+}
+
+input UpdatePlantStatusReportDto {
+  aiRecommendations: String
+  aiSummary: String
+  growthStatus: String
+  leafStatus: String
+  lightAssessment: String
+  notes: String
+  overallStatus: OverallStatus
+  pestSuspicion: PestSuspicion
+  reportMonth: String
+  soilStatus: String
+  wateringAssessment: String
+}
+
+input UpdateRoomDto {
+  averageTemperature: String
+  humidityLevel: HumidityLevel
+  lightLevel: LightLevel
+  name: String
+  notes: String
+  orientation: RoomOrientation
+}
+
+input UpdateUserEnabledInput {
+  id: ID!
+  isEnabled: Boolean!
+}
+
+input UpsertPlantRequirementDto {
+  commonProblems: String
+  fertilizingNeed: String
+  humidityNeed: String
+  lightNeed: String
+  repottingFrequency: String
+  soilNeed: String
+  source: String
+  temperatureNeed: String
+  toxicity: String
+  waterNeed: String
+}
+
+type UserModel {
+  displayName: String
+  email: String!
+  id: ID!
+  isAdmin: Boolean!
+  isEnabled: Boolean!
+}

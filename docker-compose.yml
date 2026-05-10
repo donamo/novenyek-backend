@@ -1,20 +1,37 @@
 services:
-  postgres:
-    image: postgres:16-alpine
-    container_name: novenyek-postgres
+  backend:
+    build:
+      context: .
+    image: novenyek-backend:latest
+    container_name: novenyek_backend
+    env_file:
+      - .env
     environment:
-      POSTGRES_DB: plantcare
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
-    ports:
-      - '5432:5432'
+      - NODE_ENV=production
+      - PORT=3000
+      - TRUST_PROXY=${TRUST_PROXY:-1}
+      - VIRTUAL_HOST=${VIRTUAL_HOST:-novenyek-api.donamo.science}
+      - LETSENCRYPT_HOST=${LETSENCRYPT_HOST:-novenyek-api.donamo.science}
+      - VIRTUAL_PORT=3000
     volumes:
-      - postgres_data:/var/lib/postgresql/data
+      - uploads_data:/app/uploads
+    restart: unless-stopped
     healthcheck:
-      test: ['CMD-SHELL', 'pg_isready -U postgres -d plantcare']
-      interval: 5s
+      test:
+        [
+          "CMD",
+          "node",
+          "-e",
+          "const net=require('net');const s=net.connect(3000,'127.0.0.1');s.setTimeout(2000);s.on('connect',()=>{s.destroy();process.exit(0)});s.on('timeout',()=>process.exit(1));s.on('error',()=>process.exit(1));",
+        ]
+      interval: 30s
       timeout: 5s
-      retries: 10
+      retries: 3
+
+networks:
+  default:
+    name: nginx-proxy
+    external: true
 
 volumes:
-  postgres_data:
+  uploads_data:

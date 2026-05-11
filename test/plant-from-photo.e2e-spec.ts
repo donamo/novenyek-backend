@@ -90,5 +90,8 @@ describe('CreatePlantFromPhoto (e2e)', () => {
 
     const thumbnailResponse = await request(server).get(thumbnailUrl);
     expect(thumbnailResponse.status).toBe(200);
+    expect(thumbnailResponse.headers['cross-origin-resource-policy']).toBe(
+      'cross-origin',
+    );
   });
 });

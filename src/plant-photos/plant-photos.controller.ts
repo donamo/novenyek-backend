@@ -24,6 +24,7 @@ export class PlantPhotosController {
 
     response.setHeader('Content-Type', file.mimeType);
     response.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
+    response.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
     response.send(file.buffer);
   }
 
@@ -39,6 +40,7 @@ export class PlantPhotosController {
 
     response.setHeader('Content-Type', file.mimeType);
     response.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
+    response.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
     response.send(file.buffer);
   }
 }

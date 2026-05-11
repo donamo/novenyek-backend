@@ -1,9 +1,11 @@
 import { Injectable } from '@nestjs/common';
-import { OverallStatus } from '@prisma/client';
+import { OverallStatus, PlantSize } from '@prisma/client';
 import {
   AiPlantAnalysisProvider,
   AnalyzePlantPhotosInput,
   AnalyzePlantPhotosResult,
+  IdentifyPlantFromPhotoInput,
+  IdentifyPlantFromPhotoResult,
 } from '../ai-analysis.types';
 
 @Injectable()
@@ -28,6 +30,23 @@ export class MockPlantAnalysisProvider implements AiPlantAnalysisProvider {
       riskLevel: 'low',
       needsHumanReview: false,
       shortSummary: 'Mock AI elemzés készült, diagnózis nélkül.',
+    });
+  }
+
+  identifyPlantFromPhoto(
+    input: IdentifyPlantFromPhotoInput,
+  ): Promise<IdentifyPlantFromPhotoResult> {
+    void input;
+
+    return Promise.resolve({
+      commonName: 'Szobafikusz',
+      species: 'Ficus elastica',
+      category: 'szobanoveny',
+      size: PlantSize.medium,
+      confidence: 'low',
+      needsHumanReview: true,
+      shortSummary:
+        'Mock AI növényfelismerés készült. A faj becslés, megerősítés javasolt.',
     });
   }
 }

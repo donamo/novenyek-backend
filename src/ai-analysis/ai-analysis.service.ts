@@ -10,6 +10,7 @@ import { PlantEventsService } from '../plant-events/plant-events.service';
 import { PlantPhotosService } from '../plant-photos/plant-photos.service';
 import { PlantStatusReportsService } from '../plant-status-reports/plant-status-reports.service';
 import { PlantsService } from '../plants/plants.service';
+import { CreatePlantFromPhotoInput } from '../plants/dto/create-plant-from-photo.input';
 import { PrismaService } from '../prisma/prisma.service';
 import { AnalyzePlantPhotosResult } from './ai-analysis.types';
 import { CreateAiAnalysisDto } from './dto/create-ai-analysis.dto';
@@ -118,6 +119,87 @@ export class AiAnalysisService {
     return this.toModel(analysis);
   }
 
+  async createPlantFromPhoto(
+    ownerUserId: string,
+    input: CreatePlantFromPhotoInput,
+  ) {
+    const provider = this.getConfiguredProvider();
+
+    if (provider !== AiProvider.mock) {
+      throw new BadRequestException(
+        'Only the mock AI provider is implemented in this backend step',
+      );
+    }
+
+    const fallbackName = input.name?.trim() || 'Azonositatlan noveny';
+    let plantId: string | null = null;
+    let photoId: string | null = null;
+
+    try {
+      const plant = await this.plantsService.create(ownerUserId, {
+        name: fallbackName,
+        nickname: input.nickname,
+        roomId: input.roomId,
+        locationDescription: input.locationDescription,
+        acquiredAt: input.acquiredAt,
+        acquiredFrom: input.acquiredFrom,
+        status: input.status,
+        notes: input.notes,
+      });
+      plantId = plant.id;
+
+      const photo = await this.plantPhotosService.createFromBase64(ownerUserId, {
+        plantId,
+        imageBase64: input.imageBase64,
+        mimeType: input.mimeType,
+        originalFilename: input.originalFilename,
+        takenAt: input.acquiredAt,
+        caption: input.caption,
+      });
+      photoId = photo.id;
+
+      const identification = await this.mockProvider.identifyPlantFromPhoto({
+        photoPath: photo.filePath,
+        language: 'hu',
+      });
+
+      const updatedPlant = await this.plantsService.update(ownerUserId, plantId, {
+        name:
+          input.name?.trim() ||
+          identification.commonName ||
+          identification.species ||
+          fallbackName,
+        nickname: input.nickname,
+        species: input.species ?? identification.species,
+        category: input.category ?? identification.category,
+        size: input.size ?? identification.size,
+        potSizeCm: input.potSizeCm,
+        roomId: input.roomId,
+        locationDescription: input.locationDescription,
+        acquiredAt: input.acquiredAt,
+        acquiredFrom: input.acquiredFrom,
+        status: input.status,
+        notes: this.mergeNotes(input.notes, identification.shortSummary),
+      });
+
+      this.logger.debug(
+        `Plant created from photo: ${updatedPlant.id} provider=${provider} confidence=${identification.confidence}`,
+      );
+
+      return updatedPlant;
+    } catch (error) {
+      if (photoId) {
+        await this.safeRemovePhoto(ownerUserId, photoId);
+      }
+
+      if (plantId) {
+        await this.safeRemovePlant(ownerUserId, plantId);
+      }
+
+      throw error;
+    }
+  }
+
   async findByPlant(ownerUserId: string, plantId: string) {
     await this.plantsService.ensureExists(ownerUserId, plantId);
     const analyses = await this.prisma.aiAnalysis.findMany({
@@ -208,6 +290,45 @@ export class AiAnalysisService {
     }
 
     return AiProvider.mock;
+  }
+
+  private mergeNotes(
+    manualNotes: string | undefined,
+    aiSummary: string,
+  ): string | undefined {
+    const normalizedManual = manualNotes?.trim();
+
+    if (!normalizedManual) {
+      return aiSummary;
+    }
+
+    return `${normalizedManual}\n\nAI felismeres: ${aiSummary}`;
+  }
+
+  private async safeRemovePhoto(
+    ownerUserId: string,
+    photoId: string,
+  ): Promise<void> {
+    try {
+      await this.plantPhotosService.remove(ownerUserId, photoId);
+    } catch (cleanupError) {
+      this.logger.warn(
+        `Failed to cleanup photo ${photoId}: ${String(cleanupError)}`,
+      );
+    }
+  }
+
+  private async safeRemovePlant(
+    ownerUserId: string,
+    plantId: string,
+  ): Promise<void> {
+    try {
+      await this.plantsService.remove(ownerUserId, plantId);
+    } catch (cleanupError) {
+      this.logger.warn(
+        `Failed to cleanup plant ${plantId}: ${String(cleanupError)}`,
+      );
+    }
   }
 
   toModel(analysis: AiAnalysis): AiAnalysisModel {

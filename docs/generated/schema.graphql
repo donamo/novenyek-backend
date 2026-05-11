@@ -60,6 +60,25 @@ input CreatePlantEventDto {
   type: PlantEventType!
 }
 
+input CreatePlantFromPhotoInput {
+  acquiredAt: DateTime
+  acquiredFrom: String
+  caption: String
+  category: String
+  imageBase64: String!
+  locationDescription: String
+  mimeType: String
+  name: String
+  nickname: String
+  notes: String
+  originalFilename: String
+  potSizeCm: Int
+  roomId: ID
+  size: PlantSize
+  species: String
+  status: PlantStatus
+}
+
 input CreatePlantPhotoFromBase64Input {
   caption: String
   imageBase64: String!
@@ -134,6 +153,7 @@ type Mutation {
   createAiAnalysis(input: CreateAiAnalysisDto!, plantId: ID!): AiAnalysisModel!
   createPlant(input: CreatePlantDto!): PlantModel!
   createPlantEvent(input: CreatePlantEventDto!, plantId: ID!): PlantEventModel!
+  createPlantFromPhoto(input: CreatePlantFromPhotoInput!): PlantModel!
   createPlantPhotoFromBase64(input: CreatePlantPhotoFromBase64Input!): PlantPhotoModel!
   createPlantStatusReport(input: CreatePlantStatusReportDto!, plantId: ID!): PlantStatusReportModel!
   createRoom(input: CreateRoomDto!): RoomModel!

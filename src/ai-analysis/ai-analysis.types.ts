@@ -1,4 +1,4 @@
-import { OverallStatus } from '@prisma/client';
+import { OverallStatus, PlantSize } from '@prisma/client';
 
 export type AiRiskLevel = 'low' | 'medium' | 'high';
 export type AiLanguage = 'hu';
@@ -28,8 +28,27 @@ export type AnalyzePlantPhotosResult = {
   shortSummary: string;
 };
 
+export type IdentifyPlantFromPhotoInput = {
+  photoPath: string;
+  language: AiLanguage;
+};
+
+export type IdentifyPlantFromPhotoResult = {
+  commonName?: string;
+  species?: string;
+  category?: string;
+  size?: PlantSize;
+  confidence: 'low' | 'medium' | 'high';
+  needsHumanReview: boolean;
+  shortSummary: string;
+};
+
 export interface AiPlantAnalysisProvider {
   analyzePlantPhotos(
     input: AnalyzePlantPhotosInput,
   ): Promise<AnalyzePlantPhotosResult>;
+
+  identifyPlantFromPhoto(
+    input: IdentifyPlantFromPhotoInput,
+  ): Promise<IdentifyPlantFromPhotoResult>;
 }

@@ -3,6 +3,8 @@ import { UseGuards } from '@nestjs/common';
 import { AuthenticatedUser } from '../auth/auth.types';
 import { CurrentUser } from '../auth/current-user.decorator';
 import { EnabledUserGuard } from '../auth/guards/enabled-user.guard';
+import { PlantModel } from '../plants/models/plant.model';
+import { CreatePlantFromPhotoInput } from '../plants/dto/create-plant-from-photo.input';
 import { AiAnalysisModel } from './models/ai-analysis.model';
 import { CreateAiAnalysisDto } from './dto/create-ai-analysis.dto';
 import { AiAnalysisService } from './ai-analysis.service';
@@ -35,5 +37,13 @@ export class AiAnalysisResolver {
     @Args('input') input: CreateAiAnalysisDto,
   ) {
     return this.aiAnalysisService.create(user.id, plantId, input);
+  }
+
+  @Mutation(() => PlantModel)
+  createPlantFromPhoto(
+    @CurrentUser() user: AuthenticatedUser,
+    @Args('input') input: CreatePlantFromPhotoInput,
+  ) {
+    return this.aiAnalysisService.createPlantFromPhoto(user.id, input);
   }
 }

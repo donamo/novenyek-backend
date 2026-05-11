@@ -3,12 +3,17 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { ConfigService } from '@nestjs/config';
 import helmet from 'helmet';
 import passport from 'passport';
+import { Request, Response } from 'express';
 import { AppModule } from '../../src/app.module';
 import { AuthService } from '../../src/auth/auth.service';
 import { PrismaExceptionFilter } from '../../src/common/filters/prisma-exception.filter';
 import { AuthenticatedUser } from '../../src/auth/auth.types';
 import { User } from '@prisma/client';
 import { createSessionMiddleware } from '../../src/auth/session.middleware';
+import {
+  createNotFoundDelayMiddleware,
+  parseNotFoundDelayMs,
+} from '../../src/common/middleware/not-found-delay.middleware';
 
 export const TEST_USER_ID = 'e2e-test-user-aaaaaaaaa';
 export const TEST_ADMIN_ID = 'e2e-test-admin-bbbbbbbbb';
@@ -77,6 +82,11 @@ export async function createTestApp(): Promise<{
   const config = app.get(ConfigService);
 
   app.use(helmet({ contentSecurityPolicy: false }));
+  app.use(
+    createNotFoundDelayMiddleware(
+      parseNotFoundDelayMs(config.get<string>('NOT_FOUND_DELAY_MS')),
+    ),
+  );
   // Use the real session middleware (same settings as production) so that
   // auth-session tests can verify Set-Cookie behaviour accurately.
   app.use(createSessionMiddleware(config));
@@ -86,19 +96,19 @@ export async function createTestApp(): Promise<{
   // Test-only login endpoint: must be registered BEFORE app.init() so that
   // NestJS's router does not intercept it first. Simulates the post-Google-OAuth
   // state by calling req.logIn() directly, establishing a real Passport session.
-  app.use('/auth/test-login', (req: Record<string, unknown>, res: Record<string, unknown>) => {
-    const userId = (req['headers'] as Record<string, string>)['x-test-user-id'];
+  app.use('/auth/test-login', (req: Request, res: Response) => {
+    const userId = req.header('x-test-user-id');
     const user = userId ? USER_MAP[userId] : undefined;
     if (!user) {
-      (res as any).status(400).json({ error: 'Missing x-test-user-id header' });
+      res.status(400).json({ error: 'Missing x-test-user-id header' });
       return;
     }
-    (req as any).logIn(user, (err: Error) => {
+    req.logIn(user, (err?: Error) => {
       if (err) {
-        (res as any).status(500).json({ error: err.message });
+        res.status(500).json({ error: err.message });
         return;
       }
-      (res as any).json({ ok: true, sessionId: (req as any).sessionID });
+      res.json({ ok: true, sessionId: req.sessionID });
     });
   });
 

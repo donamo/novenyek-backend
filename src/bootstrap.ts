@@ -8,6 +8,10 @@ import { createSessionMiddleware } from './auth/session.middleware';
 import { PrismaExceptionFilter } from './common/filters/prisma-exception.filter';
 import { resolveLogLevels } from './common/logging/log-levels';
 import { requestLoggingMiddleware } from './common/logging/request-logging.middleware';
+import {
+  createNotFoundDelayMiddleware,
+  parseNotFoundDelayMs,
+} from './common/middleware/not-found-delay.middleware';
 
 type ExpressLikeApp = {
   set: (setting: string, value: unknown) => void;
@@ -22,6 +26,9 @@ export async function bootstrap(): Promise<void> {
   const logLevels = resolveLogLevels(config.get<string>('LOG_LEVEL'));
   const trustProxy = config.get<string>('TRUST_PROXY') === '1';
   const frontendUrl = config.get<string>('FRONTEND_URL');
+  const notFoundDelayMs = parseNotFoundDelayMs(
+    config.get<string>('NOT_FOUND_DELAY_MS'),
+  );
 
   app.useLogger(logLevels);
   logger.log(
@@ -35,6 +42,7 @@ export async function bootstrap(): Promise<void> {
   }
 
   app.use(helmet());
+  app.use(createNotFoundDelayMiddleware(notFoundDelayMs));
   app.use(requestLoggingMiddleware);
   app.use(createSessionMiddleware(config));
   app.use(passport.initialize());

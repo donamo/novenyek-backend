@@ -7,3 +7,4 @@ uploads
 *.log
 backend-fejlesztesi-stack-es-iranyelvek.md
 novenynaplo_specifikacio.md
+.env.test

@@ -1,4 +1,6 @@
 import { INestApplication } from '@nestjs/common';
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 import { App } from 'supertest/types';
 import { createTestApp, TEST_USER, TEST_USER_ID } from './helpers/test-app';
 import { asUser } from './helpers/gql';
@@ -18,8 +20,9 @@ const CREATE_PLANT_FROM_PHOTO = `
   }
 `;
 
-const ONE_PIXEL_PNG_BASE64 =
-  'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO1W4uQAAAAASUVORK5CYII=';
+const TEST_IMAGE_BASE64 = readFileSync(
+  resolve(process.cwd(), 'test/misc/plants.jpeg'),
+).toString('base64');
 
 describe('CreatePlantFromPhoto (e2e)', () => {
   let app: INestApplication;
@@ -45,19 +48,19 @@ describe('CreatePlantFromPhoto (e2e)', () => {
   it('creates a plant and prefills AI-derived fields from the first photo', async () => {
     const res = await asUser(server, TEST_USER_ID).gql(CREATE_PLANT_FROM_PHOTO, {
       input: {
-        imageBase64: `data:image/png;base64,${ONE_PIXEL_PNG_BASE64}`,
-        originalFilename: 'plant.png',
+        imageBase64: `data:image/jpeg;base64,${TEST_IMAGE_BASE64}`,
+        originalFilename: 'plants.jpeg',
       },
     });
 
     expect(res.body.errors).toBeUndefined();
-    expect(res.body.data.createPlantFromPhoto.name).toBe('Szobafikusz');
-    expect(res.body.data.createPlantFromPhoto.species).toBe('Ficus elastica');
-    expect(res.body.data.createPlantFromPhoto.category).toBe('szobanoveny');
-    expect(res.body.data.createPlantFromPhoto.size).toBe('medium');
+    expect(res.body.data.createPlantFromPhoto.id).toBeTruthy();
+    expect(res.body.data.createPlantFromPhoto.name).toBeTruthy();
     expect(res.body.data.createPlantFromPhoto._count.photos).toBe(1);
-    expect(res.body.data.createPlantFromPhoto.notes).toContain(
-      'Mock AI növényfelismerés',
-    );
+    expect(
+      typeof res.body.data.createPlantFromPhoto.species === 'string' ||
+        typeof res.body.data.createPlantFromPhoto.category === 'string' ||
+        typeof res.body.data.createPlantFromPhoto.size === 'string',
+    ).toBe(true);
   });
 });

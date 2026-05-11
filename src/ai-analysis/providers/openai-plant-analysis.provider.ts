@@ -40,7 +40,7 @@ export class OpenAiPlantAnalysisProvider implements AiPlantAnalysisProvider {
 
     const response = await client.responses.create({
       model: this.getModel(),
-      max_output_tokens: this.config.get<number>('AI_MAX_OUTPUT_TOKENS', 500),
+      max_output_tokens: this.getMaxOutputTokens(),
       input: [
         {
           role: 'developer',
@@ -125,7 +125,7 @@ export class OpenAiPlantAnalysisProvider implements AiPlantAnalysisProvider {
     const client = this.createClient();
     const response = await client.responses.create({
       model: this.getModel(),
-      max_output_tokens: this.config.get<number>('AI_MAX_OUTPUT_TOKENS', 500),
+      max_output_tokens: this.getMaxOutputTokens(),
       input: [
         {
           role: 'developer',
@@ -218,6 +218,17 @@ export class OpenAiPlantAnalysisProvider implements AiPlantAnalysisProvider {
 
   private getModel(): string {
     return resolveAiModel(this.config, 'openai');
+  }
+
+  private getMaxOutputTokens(): number {
+    const rawValue = this.config.get<string>('AI_MAX_OUTPUT_TOKENS');
+    const parsed = Number(rawValue);
+
+    if (!Number.isFinite(parsed) || parsed <= 0) {
+      return 500;
+    }
+
+    return Math.floor(parsed);
   }
 
   private async filePathToDataUrl(filePath: string): Promise<string> {

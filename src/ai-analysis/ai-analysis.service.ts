@@ -15,7 +15,10 @@ import { PrismaService } from '../prisma/prisma.service';
 import { AnalyzePlantPhotosResult } from './ai-analysis.types';
 import { CreateAiAnalysisDto } from './dto/create-ai-analysis.dto';
 import { MockPlantAnalysisProvider } from './providers/mock-plant-analysis.provider';
+import { OpenAiPlantAnalysisProvider } from './providers/openai-plant-analysis.provider';
 import { AiAnalysisModel } from './models/ai-analysis.model';
+import { AiPlantAnalysisProvider } from './ai-analysis.types';
+import { resolveAiModel } from './ai-model-resolver';
 
 const PROMPT_VERSION = 'plant-analysis-v1';
 
@@ -31,16 +34,12 @@ export class AiAnalysisService {
     private readonly statusReportsService: PlantStatusReportsService,
     private readonly plantEventsService: PlantEventsService,
     private readonly mockProvider: MockPlantAnalysisProvider,
+    private readonly openAiProvider: OpenAiPlantAnalysisProvider,
   ) {}
 
   async create(ownerUserId: string, plantId: string, input: CreateAiAnalysisDto) {
     const provider = input.provider ?? this.getConfiguredProvider();
-
-    if (provider !== AiProvider.mock) {
-      throw new BadRequestException(
-        'Only the mock AI provider is implemented in this backend step',
-      );
-    }
+    const aiProvider = this.getAnalysisProvider(provider);
 
     await this.assertLimits(ownerUserId, input.photoIds.length);
     const plant = await this.prisma.plant.findFirst({
@@ -66,7 +65,7 @@ export class AiAnalysisService {
       input.photoIds,
     );
 
-    const result = await this.mockProvider.analyzePlantPhotos({
+    const result = await aiProvider.analyzePlantPhotos({
       plantId,
       plantName: plant.name,
       species: plant.species,
@@ -87,7 +86,7 @@ export class AiAnalysisService {
       ownerUserId,
       statusReportId: input.statusReportId,
       provider,
-      model: this.config.get<string>('AI_MODEL', 'mock-v1'),
+      model: resolveAiModel(this.config, provider),
       photoIds: input.photoIds,
       result,
     });
@@ -124,12 +123,7 @@ export class AiAnalysisService {
     input: CreatePlantFromPhotoInput,
   ) {
     const provider = this.getConfiguredProvider();
-
-    if (provider !== AiProvider.mock) {
-      throw new BadRequestException(
-        'Only the mock AI provider is implemented in this backend step',
-      );
-    }
+    const aiProvider = this.getAnalysisProvider(provider);
 
     const fallbackName = input.name?.trim() || 'Azonositatlan noveny';
     let plantId: string | null = null;
@@ -158,7 +152,7 @@ export class AiAnalysisService {
       });
       photoId = photo.id;
 
-      const identification = await this.mockProvider.identifyPlantFromPhoto({
+      const identification = await aiProvider.identifyPlantFromPhoto({
         photoPath: photo.filePath,
         language: 'hu',
       });
@@ -290,6 +284,20 @@ export class AiAnalysisService {
     }
 
     return AiProvider.mock;
+  }
+
+  private getAnalysisProvider(provider: AiProvider): AiPlantAnalysisProvider {
+    if (provider === AiProvider.mock) {
+      return this.mockProvider;
+    }
+
+    if (provider === AiProvider.openai) {
+      return this.openAiProvider;
+    }
+
+    throw new BadRequestException(
+      `AI provider ${provider} is not implemented in this backend step`,
+    );
   }
 
   private mergeNotes(

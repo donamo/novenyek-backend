@@ -17,6 +17,38 @@ npm run prisma:deploy
 npm run start:dev
 ```
 
+## AI Configuration
+
+OpenAI usage is controlled by `AI_PROVIDER`, `AI_MODEL`, and
+`OPENAI_MODEL_TIER`.
+
+```env
+AI_PROVIDER=openai
+AI_MODEL=
+OPENAI_MODEL_TIER=medium
+OPENAI_API_KEY=your-openai-api-key
+OPENAI_PROJECT_ID=your-openai-project-id
+OPENAI_ORG_ID=
+```
+
+Rules:
+
+- If `AI_MODEL` is set, the backend uses that exact OpenAI model.
+- If `AI_MODEL` is empty and `AI_PROVIDER=openai`, the backend resolves the
+  model from `OPENAI_MODEL_TIER`.
+- Supported tiers: `cheap`, `medium`, `expensive`.
+
+Current tier mapping:
+
+- `cheap` -> `gpt-5.4-nano`
+- `medium` -> `gpt-5.4-mini`
+- `expensive` -> `gpt-5.5`
+
+Environment defaults in this project:
+
+- local development: `OPENAI_MODEL_TIER=medium` in `.env.example`
+- e2e test env: `OPENAI_MODEL_TIER=cheap` in `.env.test`
+
 Logging is controlled by `LOG_LEVEL`:
 
 ```env

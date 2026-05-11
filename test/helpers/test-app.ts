@@ -1,12 +1,14 @@
 import { INestApplication, ValidationPipe } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
 import { ConfigService } from '@nestjs/config';
+import { json, urlencoded } from 'express';
 import helmet from 'helmet';
 import passport from 'passport';
 import { Request, Response } from 'express';
 import { AppModule } from '../../src/app.module';
 import { AuthService } from '../../src/auth/auth.service';
 import { PrismaExceptionFilter } from '../../src/common/filters/prisma-exception.filter';
+import { parseBodyParserLimit } from '../../src/common/http/body-parser-limit';
 import { AuthenticatedUser } from '../../src/auth/auth.types';
 import { User } from '@prisma/client';
 import { createSessionMiddleware } from '../../src/auth/session.middleware';
@@ -78,9 +80,14 @@ export async function createTestApp(): Promise<{
     .useValue(mockAuthService)
     .compile();
 
-  const app = moduleRef.createNestApplication();
+  const app = moduleRef.createNestApplication({ bodyParser: false });
   const config = app.get(ConfigService);
+  const bodyParserLimit = parseBodyParserLimit(
+    config.get<string>('BODY_PARSER_LIMIT'),
+  );
 
+  app.use(json({ limit: bodyParserLimit }));
+  app.use(urlencoded({ extended: true, limit: bodyParserLimit }));
   app.use(helmet({ contentSecurityPolicy: false }));
   app.use(
     createNotFoundDelayMiddleware(

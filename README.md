@@ -55,6 +55,13 @@ Logging is controlled by `LOG_LEVEL`:
 LOG_LEVEL=error|warn|log|debug|verbose|silent
 ```
 
+Large base64 image uploads use the standard JSON request body, so the backend
+request size limit is configurable:
+
+```env
+BODY_PARSER_LIMIT=5mb
+```
+
 Frontend integration is controlled by `FRONTEND_URL`; it is used for CORS and
 the Google auth callback redirect:
 

@@ -6,8 +6,6 @@ import {
 import { ConfigService } from '@nestjs/config';
 import { OverallStatus, PlantSize } from '@prisma/client';
 import OpenAI from 'openai';
-import { readFile } from 'node:fs/promises';
-import { extname } from 'node:path';
 import {
   AiPlantAnalysisProvider,
   AnalyzePlantPhotosInput,
@@ -30,17 +28,15 @@ export class OpenAiPlantAnalysisProvider implements AiPlantAnalysisProvider {
     input: AnalyzePlantPhotosInput,
   ): Promise<AnalyzePlantPhotosResult> {
     const client = this.createClient();
-    const imageContents = await Promise.all(
-      input.photoPaths.map(async (photoPath) => ({
-        type: 'input_image' as const,
-        image_url: await this.filePathToDataUrl(photoPath),
-        detail: 'high' as const,
-      })),
-    );
+    const imageContents = input.photoDataUrls.map((photoDataUrl) => ({
+      type: 'input_image' as const,
+      image_url: photoDataUrl,
+      detail: 'high' as const,
+    }));
 
     const response = await client.responses.create({
       model: this.getModel(),
-      max_output_tokens: this.getMaxOutputTokens(),
+      max_output_tokens: this.getIdentificationMaxOutputTokens(),
       input: [
         {
           role: 'developer',
@@ -133,7 +129,7 @@ export class OpenAiPlantAnalysisProvider implements AiPlantAnalysisProvider {
             {
               type: 'input_text',
               text:
-                'You identify houseplants from a single image and return only JSON matching the schema. Use Hungarian language for the summary text.',
+                'You identify houseplants from a single image and return only JSON matching the schema. Use Hungarian language for the summary and care text fields.',
             },
           ],
         },
@@ -144,12 +140,12 @@ export class OpenAiPlantAnalysisProvider implements AiPlantAnalysisProvider {
               type: 'input_text',
               text:
                 input.language === 'hu'
-                  ? 'Azonositsd a novenyt a kep alapjan. Ha nem vagy biztos benne, add meg a legvaloszinubb fajt es allitsd a confidence mezot alacsonyabbra.'
+                  ? 'Azonositsd a novenyt a kep alapjan. Adj meg legvaloszinubb fajt, becsult cserepmeretet centimeterben, valamint a fajhoz illo gondozasi igenyeket. Minden szoveges mezo legyen rovid, tomor, legfeljebb 3-10 szo. Ha nem vagy biztos benne, allitsd a confidence mezot alacsonyabbra.'
                   : 'Identify the plant from the image.',
             },
             {
               type: 'input_image',
-              image_url: await this.filePathToDataUrl(input.photoPath),
+              image_url: input.photoDataUrl,
               detail: 'high',
             },
           ],
@@ -168,6 +164,8 @@ export class OpenAiPlantAnalysisProvider implements AiPlantAnalysisProvider {
               'species',
               'category',
               'size',
+              'potSizeCm',
+              'careProfile',
               'confidence',
               'needsHumanReview',
               'shortSummary',
@@ -179,6 +177,37 @@ export class OpenAiPlantAnalysisProvider implements AiPlantAnalysisProvider {
               size: {
                 type: ['string', 'null'],
                 enum: ['small', 'medium', 'large', null],
+              },
+              potSizeCm: {
+                type: ['integer', 'null'],
+                minimum: 1,
+                maximum: 200,
+              },
+              careProfile: {
+                type: 'object',
+                additionalProperties: false,
+                required: [
+                  'lightNeed',
+                  'waterNeed',
+                  'humidityNeed',
+                  'temperatureNeed',
+                  'soilNeed',
+                  'fertilizingNeed',
+                  'repottingFrequency',
+                  'commonProblems',
+                  'toxicity',
+                ],
+                properties: {
+                  lightNeed: { type: ['string', 'null'] },
+                  waterNeed: { type: ['string', 'null'] },
+                  humidityNeed: { type: ['string', 'null'] },
+                  temperatureNeed: { type: ['string', 'null'] },
+                  soilNeed: { type: ['string', 'null'] },
+                  fertilizingNeed: { type: ['string', 'null'] },
+                  repottingFrequency: { type: ['string', 'null'] },
+                  commonProblems: { type: ['string', 'null'] },
+                  toxicity: { type: ['string', 'null'] },
+                },
               },
               confidence: {
                 type: 'string',
@@ -231,24 +260,8 @@ export class OpenAiPlantAnalysisProvider implements AiPlantAnalysisProvider {
     return Math.floor(parsed);
   }
 
-  private async filePathToDataUrl(filePath: string): Promise<string> {
-    const buffer = await readFile(filePath);
-    const mimeType = this.mimeTypeFromFilePath(filePath);
-    return `data:${mimeType};base64,${buffer.toString('base64')}`;
-  }
-
-  private mimeTypeFromFilePath(filePath: string): string {
-    const extension = extname(filePath).toLowerCase();
-
-    if (extension === '.png') {
-      return 'image/png';
-    }
-
-    if (extension === '.webp') {
-      return 'image/webp';
-    }
-
-    return 'image/jpeg';
+  private getIdentificationMaxOutputTokens(): number {
+    return Math.max(this.getMaxOutputTokens(), 1200);
   }
 
   private buildPhotoAnalysisPrompt(input: AnalyzePlantPhotosInput): string {
@@ -257,7 +270,7 @@ export class OpenAiPlantAnalysisProvider implements AiPlantAnalysisProvider {
       : 'Szobaadat nem all rendelkezesre.';
 
     return [
-      `Elemezd a noveny allapotat ${input.photoPaths.length} kep alapjan.`,
+      `Elemezd a noveny allapotat ${input.photoDataUrls.length} kep alapjan.`,
       `Noveny neve: ${input.plantName ?? 'ismeretlen'}.`,
       `Faj: ${input.species ?? 'ismeretlen'}.`,
       roomSummary,
@@ -319,6 +332,13 @@ export class OpenAiPlantAnalysisProvider implements AiPlantAnalysisProvider {
     if (
       !validConfidence.has(value.confidence) ||
       !validSizes.has(value.size ?? null) ||
+      (value.potSizeCm !== undefined &&
+        value.potSizeCm !== null &&
+        (!Number.isInteger(value.potSizeCm) ||
+          value.potSizeCm < 1 ||
+          value.potSizeCm > 200)) ||
+      typeof value.careProfile !== 'object' ||
+      value.careProfile === null ||
       typeof value.needsHumanReview !== 'boolean' ||
       typeof value.shortSummary !== 'string'
     ) {

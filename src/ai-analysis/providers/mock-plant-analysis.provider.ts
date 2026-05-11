@@ -13,7 +13,7 @@ export class MockPlantAnalysisProvider implements AiPlantAnalysisProvider {
   analyzePlantPhotos(
     input: AnalyzePlantPhotosInput,
   ): Promise<AnalyzePlantPhotosResult> {
-    const photoCount = input.photoPaths.length;
+    const photoCount = input.photoDataUrls.length;
 
     return Promise.resolve({
       overallStatus: OverallStatus.unknown,
@@ -43,6 +43,19 @@ export class MockPlantAnalysisProvider implements AiPlantAnalysisProvider {
       species: 'Ficus elastica',
       category: 'szobanoveny',
       size: PlantSize.medium,
+      potSizeCm: 21,
+      careProfile: {
+        lightNeed: 'Vilagos hely, eros szort feny.',
+        waterNeed:
+          'Ket locsolas kozott a talaj felso reteget hagyd enyhen kiszaradni.',
+        humidityNeed: 'Kozepes vagy enyhen magas paratartalom.',
+        temperatureNeed: '18-27 °C kozott idealis.',
+        soilNeed: 'Laza, jo vizelvezetesu szobanoveny-fold.',
+        fertilizingNeed: 'Tavasztol oszig 2-4 hetente.',
+        repottingFrequency: '1-2 evente tavasszal.',
+        commonProblems: 'Tulontozes, fenyhiany, takacsatka.',
+        toxicity: 'Enyhen mergezo haziallatoknak.',
+      },
       confidence: 'low',
       needsHumanReview: true,
       shortSummary:

@@ -6,5 +6,6 @@ import { PlantRequirementsService } from './plant-requirements.service';
 @Module({
   imports: [PlantsModule],
   providers: [PlantRequirementsResolver, PlantRequirementsService],
+  exports: [PlantRequirementsService],
 })
 export class PlantRequirementsModule {}

@@ -38,3 +38,22 @@ export async function cleanupUser(userId: string): Promise<void> {
   await prisma.room.deleteMany({ where: { ownerUserId: userId } });
   await prisma.user.deleteMany({ where: { id: userId } });
 }
+
+export async function createPlantForTest(input: {
+  ownerUserId: string;
+  name: string;
+  species?: string;
+  category?: string;
+  potSizeCm?: number;
+}): Promise<{ id: string }> {
+  return prisma.plant.create({
+    data: {
+      ownerUserId: input.ownerUserId,
+      name: input.name,
+      species: input.species,
+      category: input.category,
+      potSizeCm: input.potSizeCm,
+    },
+    select: { id: true },
+  });
+}

@@ -2,14 +2,8 @@ import { INestApplication } from '@nestjs/common';
 import { App } from 'supertest/types';
 import { createTestApp, TEST_USER_ID } from './helpers/test-app';
 import { asUser } from './helpers/gql';
-import { cleanupUser, seedTestUser, prisma } from './helpers/db';
+import { cleanupUser, createPlantForTest, seedTestUser, prisma } from './helpers/db';
 import { TEST_USER } from './helpers/test-app';
-
-const CREATE_PLANT = `
-  mutation CreatePlant($input: CreatePlantDto!) {
-    createPlant(input: $input) { id }
-  }
-`;
 
 const CREATE_STATUS_REPORT = `
   mutation CreatePlantStatusReport($plantId: ID!, $input: CreatePlantStatusReportDto!) {
@@ -57,11 +51,11 @@ describe('Plant Status Reports (e2e)', () => {
     ({ app } = await createTestApp());
     server = app.getHttpServer() as App;
     await seedTestUser(TEST_USER_ID, TEST_USER.email, true, TEST_USER.displayName ?? undefined);
-
-    const res = await asUser(server, TEST_USER_ID).gql(CREATE_PLANT, {
-      input: { name: 'Státusz teszt növény' },
+    const plant = await createPlantForTest({
+      ownerUserId: TEST_USER_ID,
+      name: 'Statusz teszt noveny',
     });
-    plantId = res.body.data.createPlant.id as string;
+    plantId = plant.id;
   });
 
   afterAll(async () => {

@@ -26,13 +26,16 @@ describe('not found delay middleware', () => {
     jest.useFakeTimers();
 
     const end = jest.fn();
+    const req = {
+      isAuthenticated: () => false,
+    } as unknown as Request;
     const res = {
       statusCode: 404,
       end,
     } as unknown as Response;
     const next = jest.fn();
 
-    createNotFoundDelayMiddleware(100)({} as Request, res, next);
+    createNotFoundDelayMiddleware(100)(req, res, next);
     expect(next).toHaveBeenCalledTimes(1);
 
     res.end('not found');
@@ -58,5 +61,23 @@ describe('not found delay middleware', () => {
 
     res.end('ok');
     expect(end).toHaveBeenCalledWith('ok');
+  });
+
+  it('does not delay authenticated 404 responses', () => {
+    jest.useFakeTimers();
+
+    const end = jest.fn();
+    const req = {
+      isAuthenticated: () => true,
+    } as unknown as Request;
+    const res = {
+      statusCode: 404,
+      end,
+    } as unknown as Response;
+
+    createNotFoundDelayMiddleware(100)(req, res, jest.fn());
+
+    res.end('not found');
+    expect(end).toHaveBeenCalledWith('not found');
   });
 });

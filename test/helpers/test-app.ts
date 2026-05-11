@@ -1,7 +1,7 @@
 import { INestApplication, ValidationPipe } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
 import { ConfigService } from '@nestjs/config';
-import { json, urlencoded } from 'express';
+import { json, static as expressStatic, urlencoded } from 'express';
 import helmet from 'helmet';
 import passport from 'passport';
 import { Request, Response } from 'express';
@@ -9,6 +9,7 @@ import { AppModule } from '../../src/app.module';
 import { AuthService } from '../../src/auth/auth.service';
 import { PrismaExceptionFilter } from '../../src/common/filters/prisma-exception.filter';
 import { parseBodyParserLimit } from '../../src/common/http/body-parser-limit';
+import { resolveUploadStaticConfig } from '../../src/common/http/upload-static';
 import { AuthenticatedUser } from '../../src/auth/auth.types';
 import { User } from '@prisma/client';
 import { createSessionMiddleware } from '../../src/auth/session.middleware';
@@ -85,15 +86,14 @@ export async function createTestApp(): Promise<{
   const bodyParserLimit = parseBodyParserLimit(
     config.get<string>('BODY_PARSER_LIMIT'),
   );
+  const uploadStatic = resolveUploadStaticConfig(
+    config.get<string>('UPLOAD_DIR'),
+  );
 
   app.use(json({ limit: bodyParserLimit }));
   app.use(urlencoded({ extended: true, limit: bodyParserLimit }));
+  app.use(uploadStatic.routePath, expressStatic(uploadStatic.rootPath));
   app.use(helmet({ contentSecurityPolicy: false }));
-  app.use(
-    createNotFoundDelayMiddleware(
-      parseNotFoundDelayMs(config.get<string>('NOT_FOUND_DELAY_MS')),
-    ),
-  );
   // Use the real session middleware (same settings as production) so that
   // auth-session tests can verify Set-Cookie behaviour accurately.
   app.use(createSessionMiddleware(config));
@@ -133,6 +133,11 @@ export async function createTestApp(): Promise<{
     }
     next();
   });
+  app.use(
+    createNotFoundDelayMiddleware(
+      parseNotFoundDelayMs(config.get<string>('NOT_FOUND_DELAY_MS')),
+    ),
+  );
 
   app.useGlobalPipes(
     new ValidationPipe({

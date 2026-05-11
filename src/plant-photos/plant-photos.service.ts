@@ -6,8 +6,7 @@ import {
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { PlantEventType } from '@prisma/client';
-import { mkdir, unlink, writeFile } from 'node:fs/promises';
-import { basename, join } from 'node:path';
+import { readFile, unlink } from 'node:fs/promises';
 import { randomUUID } from 'node:crypto';
 import sharp from 'sharp';
 import { PlantEventsService } from '../plant-events/plant-events.service';
@@ -49,18 +48,23 @@ export class PlantPhotosService {
       );
     }
 
-    const metadata = await sharp(file.path).metadata();
-    const thumbnailPath = await this.createThumbnail(file.path);
+    const photoId = randomUUID();
+    const imageBuffer = await this.resolveUploadBuffer(file);
+    const metadata = await sharp(imageBuffer).metadata();
+    const thumbnailData = await this.createThumbnail(imageBuffer);
 
     const photo = await this.prisma.plantPhoto.create({
       data: {
+        id: photoId,
         plantId,
         ownerUserId,
         statusReportId: input.statusReportId,
-        filePath: file.path,
-        thumbnailPath,
+        filePath: this.buildPhotoUrl(photoId),
+        thumbnailPath: this.buildThumbnailUrl(photoId),
         originalFilename: file.originalname,
         mimeType: file.mimetype,
+        imageData: this.toPrismaBytes(imageBuffer),
+        thumbnailData: this.toPrismaBytes(thumbnailData),
         sizeBytes: file.size,
         width: metadata.width,
         height: metadata.height,
@@ -98,28 +102,25 @@ export class PlantPhotosService {
     }
 
     const parsed = this.parseBase64Image(input.imageBase64, input.mimeType);
-    const uploadDir = this.config.get<string>('UPLOAD_DIR', './uploads');
-    await mkdir(uploadDir, { recursive: true });
-
+    const photoId = randomUUID();
     const extension = this.extensionForMimeType(parsed.mimeType);
     const originalFilename =
-      input.originalFilename ?? `${Date.now()}-${randomUUID()}${extension}`;
-    const filePath = join(uploadDir, `${Date.now()}-${randomUUID()}${extension}`);
-
-    await writeFile(filePath, parsed.buffer);
-
-    const metadata = await sharp(filePath).metadata();
-    const thumbnailPath = await this.createThumbnail(filePath);
+      input.originalFilename ?? `${Date.now()}-${photoId}${extension}`;
+    const metadata = await sharp(parsed.buffer).metadata();
+    const thumbnailData = await this.createThumbnail(parsed.buffer);
 
     const photo = await this.prisma.plantPhoto.create({
       data: {
+        id: photoId,
         ownerUserId,
         plantId: input.plantId,
         statusReportId: input.statusReportId,
-        filePath,
-        thumbnailPath,
+        filePath: this.buildPhotoUrl(photoId),
+        thumbnailPath: this.buildThumbnailUrl(photoId),
         originalFilename,
         mimeType: parsed.mimeType,
+        imageData: this.toPrismaBytes(parsed.buffer),
+        thumbnailData: this.toPrismaBytes(thumbnailData),
         sizeBytes: parsed.buffer.byteLength,
         width: metadata.width,
         height: metadata.height,
@@ -194,29 +195,91 @@ export class PlantPhotosService {
     }
 
     await this.prisma.plantPhoto.delete({ where: { id: photoId } });
-    await this.unlinkIfExists(photo.filePath);
-
-    if (photo.thumbnailPath) {
-      await this.unlinkIfExists(photo.thumbnailPath);
-    }
+    await this.unlinkLegacyFilesIfNeeded(photo.filePath, photo.thumbnailPath);
 
     this.logger.debug(`Photo deleted: ${photoId} owner=${ownerUserId}`);
     return { deleted: true };
   }
 
-  private async createThumbnail(filePath: string): Promise<string> {
-    const uploadDir = this.config.get<string>('UPLOAD_DIR', './uploads');
-    const thumbnailDir = join(uploadDir, 'thumbnails');
-    await mkdir(thumbnailDir, { recursive: true });
+  async getStoredImage(
+    photoId: string,
+    variant: 'original' | 'thumbnail',
+  ): Promise<{ buffer: Buffer; mimeType: string } | null> {
+    const photo = await this.prisma.plantPhoto.findUnique({
+      where: { id: photoId },
+      select: {
+        filePath: true,
+        thumbnailPath: true,
+        mimeType: true,
+        imageData: true,
+        thumbnailData: true,
+      },
+    });
+    if (!photo) {
+      return null;
+    }
 
-    const thumbnailPath = join(thumbnailDir, basename(filePath));
-    await sharp(filePath)
+    if (variant === 'original') {
+      if (photo.imageData) {
+        return {
+          buffer: Buffer.from(photo.imageData),
+          mimeType: photo.mimeType,
+        };
+      }
+
+      const buffer = await this.readLegacyFileIfNeeded(photo.filePath);
+      return buffer
+        ? {
+            buffer,
+            mimeType: photo.mimeType,
+          }
+        : null;
+    }
+
+    if (photo.thumbnailData) {
+      return {
+        buffer: Buffer.from(photo.thumbnailData),
+        mimeType: 'image/jpeg',
+      };
+    }
+
+    if (!photo.thumbnailPath) {
+      return null;
+    }
+
+    const buffer = await this.readLegacyFileIfNeeded(photo.thumbnailPath);
+    return buffer
+      ? {
+          buffer,
+          mimeType: 'image/jpeg',
+        }
+      : null;
+  }
+
+  async toImageDataUrl(photo: {
+    id: string;
+    mimeType: string;
+    imageData?: Uint8Array | Buffer | null;
+    filePath: string;
+  }): Promise<string> {
+    if (photo.imageData) {
+      return `data:${photo.mimeType};base64,${Buffer.from(photo.imageData).toString('base64')}`;
+    }
+
+    const legacyBuffer = await this.readLegacyFileIfNeeded(photo.filePath);
+    if (!legacyBuffer) {
+      throw new NotFoundException(`Photo binary not found: ${photo.id}`);
+    }
+
+    return `data:${photo.mimeType};base64,${legacyBuffer.toString('base64')}`;
+  }
+
+  private async createThumbnail(imageBuffer: Buffer): Promise<Buffer> {
+    return sharp(imageBuffer)
       .rotate()
       .resize({ width: 300, height: 300, fit: 'inside' })
       .jpeg({ quality: 82 })
-      .toFile(thumbnailPath);
-
-    return thumbnailPath;
+      .toBuffer();
   }
 
   private async unlinkIfExists(filePath: string): Promise<void> {
@@ -243,6 +306,61 @@ export class PlantPhotosService {
       buffer: Buffer.from(payload, 'base64'),
       mimeType,
     };
+  }
+
+  private async resolveUploadBuffer(file: Express.Multer.File): Promise<Buffer> {
+    if (file.buffer?.byteLength) {
+      return file.buffer;
+    }
+
+    if (file.path) {
+      return readFile(file.path);
+    }
+
+    throw new BadRequestException('Photo file buffer is missing');
+  }
+
+  private buildPhotoUrl(photoId: string): string {
+    return `/uploads/photos/${photoId}`;
+  }
+
+  private buildThumbnailUrl(photoId: string): string {
+    return `/uploads/thumbnails/${photoId}`;
+  }
+
+  private async unlinkLegacyFilesIfNeeded(
+    filePath: string,
+    thumbnailPath?: string | null,
+  ): Promise<void> {
+    if (!this.isLegacyFilesystemPath(filePath)) {
+      return;
+    }
+
+    await this.unlinkIfExists(filePath);
+
+    if (thumbnailPath && this.isLegacyFilesystemPath(thumbnailPath)) {
+      await this.unlinkIfExists(thumbnailPath);
+    }
+  }
+
+  private async readLegacyFileIfNeeded(filePath: string): Promise<Buffer | null> {
+    if (!this.isLegacyFilesystemPath(filePath)) {
+      return null;
+    }
+
+    try {
+      return await readFile(filePath);
+    } catch {
+      return null;
+    }
+  }
+
+  private isLegacyFilesystemPath(filePath: string): boolean {
+    return !filePath.startsWith('/uploads/');
+  }
+
+  private toPrismaBytes(buffer: Buffer): Uint8Array<ArrayBuffer> {
+    return new Uint8Array(buffer);
   }
 
   private extensionForMimeType(mimeType: string): string {

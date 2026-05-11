@@ -209,6 +209,8 @@ model PlantPhoto {
   thumbnailPath    String?
   originalFilename String?
   mimeType         String
+  imageData        Bytes?
+  thumbnailData    Bytes?
   sizeBytes        Int
   width            Int?
   height           Int?

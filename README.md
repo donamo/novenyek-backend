@@ -110,7 +110,7 @@ REST:
 GraphQL:
 
 - Queries: `apiStatus`, `me`, `users`, `rooms`, `room`, `plants`, `plant`, `plantRequirement`, `plantEvents`, `plantStatusReports`, `plantStatusReport`, `plantPhotos`, `plantStatusReportPhotos`, `plantAiAnalyses`, `aiAnalysis`, `dashboard`, `plantExportJson`, `plantExportMarkdown`
-- Mutations: `updateUserEnabled`, `createRoom`, `updateRoom`, `deleteRoom`, `createPlant`, `updatePlant`, `deletePlant`, `upsertPlantRequirement`, `createPlantEvent`, `updatePlantEvent`, `deletePlantEvent`, `createPlantStatusReport`, `updatePlantStatusReport`, `deletePlantStatusReport`, `createPlantPhotoFromBase64`, `deletePlantPhoto`, `createAiAnalysis`
+- Mutations: `updateUserEnabled`, `createRoom`, `updateRoom`, `deleteRoom`, `createPlantFromPhoto`, `updatePlant`, `deletePlant`, `upsertPlantRequirement`, `createPlantEvent`, `updatePlantEvent`, `deletePlantEvent`, `createPlantStatusReport`, `updatePlantStatusReport`, `deletePlantStatusReport`, `createPlantPhotoFromBase64`, `deletePlantPhoto`, `createAiAnalysis`
 
 Domain endpoints require an authenticated session where the user is enabled or
 matches `ADMIN_EMAIL`. New Google users are created with `isEnabled=false`;

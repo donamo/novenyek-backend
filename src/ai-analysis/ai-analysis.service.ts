@@ -5,9 +5,10 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { AiAnalysis, AiProvider, PlantEventType, Prisma } from '@prisma/client';
+import { AiAnalysis, AiProvider, PlantEventType, PlantStatus, Prisma } from '@prisma/client';
 import { PlantEventsService } from '../plant-events/plant-events.service';
 import { PlantPhotosService } from '../plant-photos/plant-photos.service';
+import { PlantRequirementsService } from '../plant-requirements/plant-requirements.service';
 import { PlantStatusReportsService } from '../plant-status-reports/plant-status-reports.service';
 import { PlantsService } from '../plants/plants.service';
 import { CreatePlantFromPhotoInput } from '../plants/dto/create-plant-from-photo.input';
@@ -31,6 +32,7 @@ export class AiAnalysisService {
     private readonly config: ConfigService,
     private readonly plantsService: PlantsService,
     private readonly plantPhotosService: PlantPhotosService,
+    private readonly plantRequirementsService: PlantRequirementsService,
     private readonly statusReportsService: PlantStatusReportsService,
     private readonly plantEventsService: PlantEventsService,
     private readonly mockProvider: MockPlantAnalysisProvider,
@@ -77,7 +79,9 @@ export class AiAnalysisService {
           }
         : null,
       statusReportId: input.statusReportId,
-      photoPaths: photos.map((photo) => photo.filePath),
+      photoDataUrls: await Promise.all(
+        photos.map((photo) => this.plantPhotosService.toImageDataUrl(photo)),
+      ),
       language: input.language ?? 'hu',
     });
 
@@ -125,20 +129,15 @@ export class AiAnalysisService {
     const provider = this.getConfiguredProvider();
     const aiProvider = this.getAnalysisProvider(provider);
 
-    const fallbackName = input.name?.trim() || 'Azonositatlan noveny';
+    const acquiredAt = new Date();
     let plantId: string | null = null;
     let photoId: string | null = null;
 
     try {
       const plant = await this.plantsService.create(ownerUserId, {
-        name: fallbackName,
-        nickname: input.nickname,
-        roomId: input.roomId,
-        locationDescription: input.locationDescription,
-        acquiredAt: input.acquiredAt,
-        acquiredFrom: input.acquiredFrom,
-        status: input.status,
-        notes: input.notes,
+        name: 'Azonositatlan noveny',
+        acquiredAt,
+        status: PlantStatus.active,
       });
       plantId = plant.id;
 
@@ -147,33 +146,35 @@ export class AiAnalysisService {
         imageBase64: input.imageBase64,
         mimeType: input.mimeType,
         originalFilename: input.originalFilename,
-        takenAt: input.acquiredAt,
+        takenAt: acquiredAt,
         caption: input.caption,
       });
       photoId = photo.id;
 
       const identification = await aiProvider.identifyPlantFromPhoto({
-        photoPath: photo.filePath,
+        photoDataUrl: await this.plantPhotosService.toImageDataUrl(photo),
         language: 'hu',
       });
+      const generatedName = await this.generateDefaultPlantName(
+        ownerUserId,
+        identification.species ||
+          identification.commonName ||
+          'Azonositatlan noveny',
+      );
 
       const updatedPlant = await this.plantsService.update(ownerUserId, plantId, {
-        name:
-          input.name?.trim() ||
-          identification.commonName ||
-          identification.species ||
-          fallbackName,
-        nickname: input.nickname,
-        species: input.species ?? identification.species,
-        category: input.category ?? identification.category,
-        size: input.size ?? identification.size,
-        potSizeCm: input.potSizeCm,
-        roomId: input.roomId,
-        locationDescription: input.locationDescription,
-        acquiredAt: input.acquiredAt,
-        acquiredFrom: input.acquiredFrom,
-        status: input.status,
-        notes: this.mergeNotes(input.notes, identification.shortSummary),
+        name: generatedName,
+        species: identification.species,
+        category: identification.category,
+        size: identification.size,
+        potSizeCm: identification.potSizeCm,
+        acquiredAt,
+        status: PlantStatus.active,
+        notes: identification.shortSummary,
+      });
+      await this.plantRequirementsService.upsert(ownerUserId, plantId, {
+        ...identification.careProfile,
+        source: `${provider}:${resolveAiModel(this.config, provider)}`,
       });
 
       this.logger.debug(
@@ -298,6 +299,34 @@ export class AiAnalysisService {
     throw new BadRequestException(
       `AI provider ${provider} is not implemented in this backend step`,
     );
+  }
+
+  private async generateDefaultPlantName(
+    ownerUserId: string,
+    baseName: string,
+  ): Promise<string> {
+    const normalizedBase = baseName.trim() || 'Azonositatlan noveny';
+    const existingPlants = await this.prisma.plant.findMany({
+      where: {
+        ownerUserId,
+        name: {
+          startsWith: normalizedBase,
+        },
+      },
+      select: { name: true },
+    });
+    const usedNames = new Set(existingPlants.map((plant) => plant.name));
+
+    if (!usedNames.has(normalizedBase)) {
+      return normalizedBase;
+    }
+
+    let suffix = 1;
+    while (usedNames.has(`${normalizedBase}-${suffix}`)) {
+      suffix += 1;
+    }
+
+    return `${normalizedBase}-${suffix}`;
   }
 
   private mergeNotes(

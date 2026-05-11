@@ -38,21 +38,6 @@ input CreateAiAnalysisDto {
   statusReportId: ID
 }
 
-input CreatePlantDto {
-  acquiredAt: DateTime
-  acquiredFrom: String
-  category: String
-  locationDescription: String
-  name: String!
-  nickname: String
-  notes: String
-  potSizeCm: Int
-  roomId: ID
-  size: PlantSize
-  species: String
-  status: PlantStatus
-}
-
 input CreatePlantEventDto {
   description: String
   eventDate: DateTime!
@@ -61,22 +46,10 @@ input CreatePlantEventDto {
 }
 
 input CreatePlantFromPhotoInput {
-  acquiredAt: DateTime
-  acquiredFrom: String
   caption: String
-  category: String
   imageBase64: String!
-  locationDescription: String
   mimeType: String
-  name: String
-  nickname: String
-  notes: String
   originalFilename: String
-  potSizeCm: Int
-  roomId: ID
-  size: PlantSize
-  species: String
-  status: PlantStatus
 }
 
 input CreatePlantPhotoFromBase64Input {
@@ -151,7 +124,6 @@ enum LightLevel {
 
 type Mutation {
   createAiAnalysis(input: CreateAiAnalysisDto!, plantId: ID!): AiAnalysisModel!
-  createPlant(input: CreatePlantDto!): PlantModel!
   createPlantEvent(input: CreatePlantEventDto!, plantId: ID!): PlantEventModel!
   createPlantFromPhoto(input: CreatePlantFromPhotoInput!): PlantModel!
   createPlantPhotoFromBase64(input: CreatePlantPhotoFromBase64Input!): PlantPhotoModel!

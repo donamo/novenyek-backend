@@ -1,6 +1,7 @@
 import { INestApplication } from '@nestjs/common';
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
+import request from 'supertest';
 import { App } from 'supertest/types';
 import { createTestApp, TEST_USER, TEST_USER_ID } from './helpers/test-app';
 import { asUser } from './helpers/gql';
@@ -62,5 +63,32 @@ describe('CreatePlantFromPhoto (e2e)', () => {
         typeof res.body.data.createPlantFromPhoto.category === 'string' ||
         typeof res.body.data.createPlantFromPhoto.size === 'string',
     ).toBe(true);
+
+    const plant = await prisma.plant.findUniqueOrThrow({
+      where: { id: res.body.data.createPlantFromPhoto.id as string },
+      include: { requirement: true },
+    });
+    expect(plant.acquiredAt).toBeTruthy();
+    expect(plant.requirement).toBeTruthy();
+    expect(plant.potSizeCm).toBeTruthy();
+    expect(
+      plant.requirement?.lightNeed ||
+        plant.requirement?.waterNeed ||
+        plant.requirement?.soilNeed,
+    ).toBeTruthy();
+    expect(plant.name).toBe(plant.species);
+
+    const photo = await prisma.plantPhoto.findFirstOrThrow({
+      where: { plantId: plant.id, ownerUserId: TEST_USER_ID },
+    });
+    expect(photo.thumbnailPath).toBeTruthy();
+    const thumbnailUrl = photo.thumbnailPath!.startsWith('./')
+      ? `/${photo.thumbnailPath!.slice(2)}`
+      : photo.thumbnailPath!.startsWith('/')
+        ? photo.thumbnailPath!
+        : `/${photo.thumbnailPath!}`;
+
+    const thumbnailResponse = await request(server).get(thumbnailUrl);
+    expect(thumbnailResponse.status).toBe(200);
   });
 });

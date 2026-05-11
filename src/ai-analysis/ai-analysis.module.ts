@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { PlantEventsModule } from '../plant-events/plant-events.module';
 import { PlantPhotosModule } from '../plant-photos/plant-photos.module';
+import { PlantRequirementsModule } from '../plant-requirements/plant-requirements.module';
 import { PlantStatusReportsModule } from '../plant-status-reports/plant-status-reports.module';
 import { PlantsModule } from '../plants/plants.module';
 import { AiAnalysisResolver } from './ai-analysis.resolver';
@@ -14,6 +15,7 @@ import { OpenAiPlantAnalysisProvider } from './providers/openai-plant-analysis.p
     ConfigModule,
     PlantsModule,
     PlantPhotosModule,
+    PlantRequirementsModule,
     PlantStatusReportsModule,
     PlantEventsModule,
   ],

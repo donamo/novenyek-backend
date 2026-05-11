@@ -13,7 +13,7 @@ export type AnalyzePlantPhotosInput = {
     lightLevel?: string | null;
   } | null;
   statusReportId?: string;
-  photoPaths: string[];
+  photoDataUrls: string[];
   language: AiLanguage;
 };
 
@@ -29,7 +29,7 @@ export type AnalyzePlantPhotosResult = {
 };
 
 export type IdentifyPlantFromPhotoInput = {
-  photoPath: string;
+  photoDataUrl: string;
   language: AiLanguage;
 };
 
@@ -38,6 +38,18 @@ export type IdentifyPlantFromPhotoResult = {
   species?: string;
   category?: string;
   size?: PlantSize;
+  potSizeCm?: number;
+  careProfile: {
+    lightNeed?: string;
+    waterNeed?: string;
+    humidityNeed?: string;
+    temperatureNeed?: string;
+    soilNeed?: string;
+    fertilizingNeed?: string;
+    repottingFrequency?: string;
+    commonProblems?: string;
+    toxicity?: string;
+  };
   confidence: 'low' | 'medium' | 'high';
   needsHumanReview: boolean;
   shortSummary: string;

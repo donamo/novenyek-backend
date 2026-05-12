@@ -47,6 +47,10 @@ describe('CreatePlantFromPhoto (e2e)', () => {
   });
 
   it('creates a plant and prefills AI-derived fields from the first photo', async () => {
+    const now = new Date();
+    const expectedReportMonth = `${now.getUTCFullYear()}-${String(
+      now.getUTCMonth() + 1,
+    ).padStart(2, '0')}`;
     const res = await asUser(server, TEST_USER_ID).gql(CREATE_PLANT_FROM_PHOTO, {
       input: {
         imageBase64: `data:image/jpeg;base64,${TEST_IMAGE_BASE64}`,
@@ -66,7 +70,11 @@ describe('CreatePlantFromPhoto (e2e)', () => {
 
     const plant = await prisma.plant.findUniqueOrThrow({
       where: { id: res.body.data.createPlantFromPhoto.id as string },
-      include: { requirement: true },
+      include: {
+        requirement: true,
+        statusReports: true,
+        aiAnalyses: true,
+      },
     });
     expect(plant.acquiredAt).toBeTruthy();
     expect(plant.requirement).toBeTruthy();
@@ -77,10 +85,17 @@ describe('CreatePlantFromPhoto (e2e)', () => {
         plant.requirement?.soilNeed,
     ).toBeTruthy();
     expect(plant.name).toBe(plant.species);
+    expect(plant.statusReports).toHaveLength(1);
+    expect(plant.statusReports[0].reportMonth).toBe(expectedReportMonth);
+    expect(plant.statusReports[0].aiSummary).toBeTruthy();
+    expect(plant.statusReports[0].aiRecommendations).toBeTruthy();
+    expect(plant.aiAnalyses).toHaveLength(1);
+    expect(plant.aiAnalyses[0].statusReportId).toBe(plant.statusReports[0].id);
 
     const photo = await prisma.plantPhoto.findFirstOrThrow({
       where: { plantId: plant.id, ownerUserId: TEST_USER_ID },
     });
+    expect(photo.statusReportId).toBe(plant.statusReports[0].id);
     expect(photo.thumbnailPath).toBeTruthy();
     const thumbnailUrl = photo.thumbnailPath!.startsWith('./')
       ? `/${photo.thumbnailPath!.slice(2)}`

@@ -5,7 +5,13 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { AiAnalysis, AiProvider, PlantEventType, PlantStatus, Prisma } from '@prisma/client';
+import {
+  AiAnalysis,
+  AiProvider,
+  PlantEventType,
+  PlantStatus,
+  Prisma,
+} from '@prisma/client';
 import { PlantEventsService } from '../plant-events/plant-events.service';
 import { PlantPhotosService } from '../plant-photos/plant-photos.service';
 import { PlantRequirementsService } from '../plant-requirements/plant-requirements.service';
@@ -130,6 +136,7 @@ export class AiAnalysisService {
   ) {
     const provider = this.getConfiguredProvider();
     const aiProvider = this.getAnalysisProvider(provider);
+    const model = resolveAiModel(this.config, provider);
 
     const acquiredAt = new Date();
     const room = input.roomId
@@ -156,19 +163,21 @@ export class AiAnalysisService {
         caption: input.caption,
       });
       photoId = photo.id;
+      const photoDataUrl = await this.plantPhotosService.toImageDataUrl(photo);
+      const roomContext = room
+        ? {
+            name: room.name,
+            orientation: room.orientation,
+            lightLevel: room.lightLevel,
+            humidityLevel: room.humidityLevel,
+            averageTemperature: room.averageTemperature,
+            notes: room.notes,
+          }
+        : null;
 
       const identification = await aiProvider.identifyPlantFromPhoto({
-        photoDataUrl: await this.plantPhotosService.toImageDataUrl(photo),
-        room: room
-          ? {
-              name: room.name,
-              orientation: room.orientation,
-              lightLevel: room.lightLevel,
-              humidityLevel: room.humidityLevel,
-              averageTemperature: room.averageTemperature,
-              notes: room.notes,
-            }
-          : null,
+        photoDataUrl,
+        room: roomContext,
         language: 'hu',
       });
       const generatedName = await this.generateDefaultPlantName(
@@ -191,7 +200,56 @@ export class AiAnalysisService {
       });
       await this.plantRequirementsService.upsert(ownerUserId, plantId, {
         ...identification.careProfile,
-        source: `${provider}:${resolveAiModel(this.config, provider)}`,
+        source: `${provider}:${model}`,
+      });
+      const initialStatusReport = await this.statusReportsService.create(
+        ownerUserId,
+        plantId,
+        {
+          reportMonth: this.toReportMonth(acquiredAt),
+        },
+      );
+      await this.prisma.plantPhoto.update({
+        where: { id: photoId },
+        data: { statusReportId: initialStatusReport.id },
+      });
+      const initialAnalysis = await aiProvider.analyzePlantPhotos({
+        plantId,
+        plantName: updatedPlant.name,
+        species: updatedPlant.species,
+        room: roomContext
+          ? {
+              name: roomContext.name,
+              orientation: roomContext.orientation,
+              lightLevel: roomContext.lightLevel,
+            }
+          : null,
+        statusReportId: initialStatusReport.id,
+        photoDataUrls: [photoDataUrl],
+        language: 'hu',
+      });
+      await this.persistAnalysis({
+        plantId,
+        ownerUserId,
+        statusReportId: initialStatusReport.id,
+        provider,
+        model,
+        photoIds: [photoId],
+        result: initialAnalysis,
+      });
+      await this.statusReportsService.update(ownerUserId, plantId, initialStatusReport.id, {
+        overallStatus: initialAnalysis.overallStatus,
+        notes: initialAnalysis.observations.join('\n'),
+        aiSummary: initialAnalysis.shortSummary,
+        aiRecommendations: initialAnalysis.recommendations.join('\n'),
+      });
+      await this.plantEventsService.createSystemEvent({
+        ownerUserId,
+        plantId,
+        type: PlantEventType.ai_analysis,
+        title: 'Kiindulo allapot AI elemzessel rogzitve',
+        description: initialAnalysis.shortSummary,
+        eventDate: acquiredAt,
       });
 
       this.logger.debug(
@@ -357,6 +415,12 @@ export class AiAnalysisService {
     }
 
     return `${normalizedManual}\n\nAI felismeres: ${aiSummary}`;
+  }
+
+  private toReportMonth(date: Date): string {
+    const year = date.getUTCFullYear();
+    const month = String(date.getUTCMonth() + 1).padStart(2, '0');
+    return `${year}-${month}`;
   }
 
   private async safeRemovePhoto(

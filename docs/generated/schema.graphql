@@ -50,6 +50,7 @@ input CreatePlantFromPhotoInput {
   imageBase64: String!
   mimeType: String
   originalFilename: String
+  roomId: ID
 }
 
 input CreatePlantPhotoFromBase64Input {

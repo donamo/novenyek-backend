@@ -5,6 +5,7 @@ import { PlantPhotosModule } from '../plant-photos/plant-photos.module';
 import { PlantRequirementsModule } from '../plant-requirements/plant-requirements.module';
 import { PlantStatusReportsModule } from '../plant-status-reports/plant-status-reports.module';
 import { PlantsModule } from '../plants/plants.module';
+import { RoomsModule } from '../rooms/rooms.module';
 import { AiAnalysisResolver } from './ai-analysis.resolver';
 import { AiAnalysisService } from './ai-analysis.service';
 import { MockPlantAnalysisProvider } from './providers/mock-plant-analysis.provider';
@@ -14,6 +15,7 @@ import { OpenAiPlantAnalysisProvider } from './providers/openai-plant-analysis.p
   imports: [
     ConfigModule,
     PlantsModule,
+    RoomsModule,
     PlantPhotosModule,
     PlantRequirementsModule,
     PlantStatusReportsModule,

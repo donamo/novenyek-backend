@@ -30,6 +30,14 @@ export type AnalyzePlantPhotosResult = {
 
 export type IdentifyPlantFromPhotoInput = {
   photoDataUrl: string;
+  room?: {
+    name: string;
+    orientation?: string | null;
+    lightLevel?: string | null;
+    humidityLevel?: string | null;
+    averageTemperature?: string | null;
+    notes?: string | null;
+  } | null;
   language: AiLanguage;
 };
 

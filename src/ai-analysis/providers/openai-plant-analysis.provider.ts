@@ -140,7 +140,7 @@ export class OpenAiPlantAnalysisProvider implements AiPlantAnalysisProvider {
               type: 'input_text',
               text:
                 input.language === 'hu'
-                  ? 'Azonositsd a novenyt a kep alapjan. Adj meg legvaloszinubb fajt, becsult cserepmeretet centimeterben, valamint a fajhoz illo gondozasi igenyeket. Minden szoveges mezo legyen rovid, tomor, legfeljebb 3-10 szo. Ha nem vagy biztos benne, allitsd a confidence mezot alacsonyabbra.'
+                  ? `Azonositsd a novenyt a kep alapjan. Adj meg legvaloszinubb fajt, becsult cserepmeretet centimeterben, valamint a fajhoz illo gondozasi igenyeket. Minden szoveges mezo legyen rovid, tomor, legfeljebb 3-10 szo. Ha nem vagy biztos benne, allitsd a confidence mezot alacsonyabbra.${this.buildRoomContext(input)}`
                   : 'Identify the plant from the image.',
             },
             {
@@ -277,6 +277,14 @@ export class OpenAiPlantAnalysisProvider implements AiPlantAnalysisProvider {
       'Adj rovid megfigyeleseket, valoszinu okokat, ajanlasokat es osszegzest.',
       'Ha a kep alapjan nem biztos a kovetkeztetes, allitsd a confidence mezot low-ra es needsHumanReview=true-ra.',
     ].join(' ');
+  }
+
+  private buildRoomContext(input: IdentifyPlantFromPhotoInput): string {
+    if (!input.room) {
+      return '';
+    }
+
+    return ` Helyseg kontextus: ${input.room.name}; tajolas: ${input.room.orientation ?? 'ismeretlen'}; feny: ${input.room.lightLevel ?? 'ismeretlen'}; paratartalom: ${input.room.humidityLevel ?? 'ismeretlen'}; atlaghomerseklet: ${input.room.averageTemperature ?? 'ismeretlen'}; megjegyzes: ${input.room.notes ?? 'nincs'}.`;
   }
 
   private parseJson<T>(value: string): T {

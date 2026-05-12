@@ -1,5 +1,5 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { Field, InputType } from '@nestjs/graphql';
+import { Field, ID, InputType } from '@nestjs/graphql';
 import { IsOptional, IsString } from 'class-validator';
 
 @InputType()
@@ -28,4 +28,10 @@ export class CreatePlantFromPhotoInput {
   @IsOptional()
   @IsString()
   caption?: string;
+
+  @Field(() => ID, { nullable: true })
+  @ApiPropertyOptional({ example: 'room-id' })
+  @IsOptional()
+  @IsString()
+  roomId?: string;
 }

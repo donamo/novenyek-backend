@@ -13,6 +13,7 @@ import { PlantStatusReportsService } from '../plant-status-reports/plant-status-
 import { PlantsService } from '../plants/plants.service';
 import { CreatePlantFromPhotoInput } from '../plants/dto/create-plant-from-photo.input';
 import { PrismaService } from '../prisma/prisma.service';
+import { RoomsService } from '../rooms/rooms.service';
 import { AnalyzePlantPhotosResult } from './ai-analysis.types';
 import { CreateAiAnalysisDto } from './dto/create-ai-analysis.dto';
 import { MockPlantAnalysisProvider } from './providers/mock-plant-analysis.provider';
@@ -31,6 +32,7 @@ export class AiAnalysisService {
     private readonly prisma: PrismaService,
     private readonly config: ConfigService,
     private readonly plantsService: PlantsService,
+    private readonly roomsService: RoomsService,
     private readonly plantPhotosService: PlantPhotosService,
     private readonly plantRequirementsService: PlantRequirementsService,
     private readonly statusReportsService: PlantStatusReportsService,
@@ -130,12 +132,16 @@ export class AiAnalysisService {
     const aiProvider = this.getAnalysisProvider(provider);
 
     const acquiredAt = new Date();
+    const room = input.roomId
+      ? await this.roomsService.findOne(ownerUserId, input.roomId)
+      : null;
     let plantId: string | null = null;
     let photoId: string | null = null;
 
     try {
       const plant = await this.plantsService.create(ownerUserId, {
         name: 'Azonositatlan noveny',
+        roomId: room?.id,
         acquiredAt,
         status: PlantStatus.active,
       });
@@ -153,6 +159,16 @@ export class AiAnalysisService {
 
       const identification = await aiProvider.identifyPlantFromPhoto({
         photoDataUrl: await this.plantPhotosService.toImageDataUrl(photo),
+        room: room
+          ? {
+              name: room.name,
+              orientation: room.orientation,
+              lightLevel: room.lightLevel,
+              humidityLevel: room.humidityLevel,
+              averageTemperature: room.averageTemperature,
+              notes: room.notes,
+            }
+          : null,
         language: 'hu',
       });
       const generatedName = await this.generateDefaultPlantName(
@@ -168,6 +184,7 @@ export class AiAnalysisService {
         category: identification.category,
         size: identification.size,
         potSizeCm: identification.potSizeCm,
+        roomId: room?.id,
         acquiredAt,
         status: PlantStatus.active,
         notes: identification.shortSummary,

@@ -1,5 +1,6 @@
 import { Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { ReadOnlyPrismaService } from '../prisma/read-only-prisma.service';
 import { CreatePlantDto } from './dto/create-plant.dto';
 import { UpdatePlantDto } from './dto/update-plant.dto';
 
@@ -20,10 +21,13 @@ const plantInclude = {
 export class PlantsService {
   private readonly logger = new Logger(PlantsService.name);
 
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly readOnlyPrisma: ReadOnlyPrismaService,
+  ) {}
 
   findAll(ownerUserId: string) {
-    return this.prisma.plant.findMany({
+    return this.readOnlyPrisma.plant.findMany({
       where: { ownerUserId },
       orderBy: [{ name: 'asc' }],
       include: {
@@ -41,7 +45,7 @@ export class PlantsService {
   }
 
   async findOne(ownerUserId: string, id: string) {
-    const plant = await this.prisma.plant.findFirst({
+    const plant = await this.readOnlyPrisma.plant.findFirst({
       where: { id, ownerUserId },
       include: plantInclude,
     });
@@ -91,6 +95,17 @@ export class PlantsService {
 
   async ensureExists(ownerUserId: string, id: string): Promise<void> {
     const plant = await this.prisma.plant.findFirst({
+      where: { id, ownerUserId },
+      select: { id: true },
+    });
+
+    if (!plant) {
+      throw new NotFoundException('Plant not found');
+    }
+  }
+
+  async ensureExistsReadOnly(ownerUserId: string, id: string): Promise<void> {
+    const plant = await this.readOnlyPrisma.plant.findFirst({
       where: { id, ownerUserId },
       select: { id: true },
     });

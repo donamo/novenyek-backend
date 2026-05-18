@@ -19,6 +19,7 @@ import { PlantStatusReportsService } from '../plant-status-reports/plant-status-
 import { PlantsService } from '../plants/plants.service';
 import { CreatePlantFromPhotoInput } from '../plants/dto/create-plant-from-photo.input';
 import { PrismaService } from '../prisma/prisma.service';
+import { ReadOnlyPrismaService } from '../prisma/read-only-prisma.service';
 import { RoomsService } from '../rooms/rooms.service';
 import { AnalyzePlantPhotosResult } from './ai-analysis.types';
 import { CreateAiAnalysisDto } from './dto/create-ai-analysis.dto';
@@ -36,6 +37,7 @@ export class AiAnalysisService {
 
   constructor(
     private readonly prisma: PrismaService,
+    private readonly readOnlyPrisma: ReadOnlyPrismaService,
     private readonly config: ConfigService,
     private readonly plantsService: PlantsService,
     private readonly roomsService: RoomsService,
@@ -140,7 +142,7 @@ export class AiAnalysisService {
 
     const acquiredAt = new Date();
     const room = input.roomId
-      ? await this.roomsService.findOne(ownerUserId, input.roomId)
+      ? await this.roomsService.findOneOnPrimary(ownerUserId, input.roomId)
       : null;
     let plantId: string | null = null;
     let photoId: string | null = null;
@@ -271,8 +273,8 @@ export class AiAnalysisService {
   }
 
   async findByPlant(ownerUserId: string, plantId: string) {
-    await this.plantsService.ensureExists(ownerUserId, plantId);
-    const analyses = await this.prisma.aiAnalysis.findMany({
+    await this.plantsService.ensureExistsReadOnly(ownerUserId, plantId);
+    const analyses = await this.readOnlyPrisma.aiAnalysis.findMany({
       where: { ownerUserId, plantId },
       orderBy: { createdAt: 'desc' },
     });
@@ -281,7 +283,7 @@ export class AiAnalysisService {
   }
 
   async findOne(ownerUserId: string, id: string) {
-    const analysis = await this.prisma.aiAnalysis.findFirst({
+    const analysis = await this.readOnlyPrisma.aiAnalysis.findFirst({
       where: { id, ownerUserId },
     });
 

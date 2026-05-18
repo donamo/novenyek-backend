@@ -1,9 +1,9 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
-import { PrismaService } from '../prisma/prisma.service';
+import { ReadOnlyPrismaService } from '../prisma/read-only-prisma.service';
 
 @Injectable()
 export class ExportService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(private readonly readOnlyPrisma: ReadOnlyPrismaService) {}
 
   async exportPlantJson(ownerUserId: string, plantId: string) {
     return this.getPlantExport(ownerUserId, plantId);
@@ -78,7 +78,7 @@ export class ExportService {
   }
 
   private async getPlantExport(ownerUserId: string, plantId: string) {
-    const plant = await this.prisma.plant.findFirst({
+    const plant = await this.readOnlyPrisma.plant.findFirst({
       where: { id: plantId, ownerUserId },
       include: {
         room: true,

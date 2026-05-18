@@ -1,6 +1,7 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PlantsService } from '../plants/plants.service';
 import { PrismaService } from '../prisma/prisma.service';
+import { ReadOnlyPrismaService } from '../prisma/read-only-prisma.service';
 import { CreatePlantStatusReportDto } from './dto/create-plant-status-report.dto';
 import { UpdatePlantStatusReportDto } from './dto/update-plant-status-report.dto';
 
@@ -8,12 +9,13 @@ import { UpdatePlantStatusReportDto } from './dto/update-plant-status-report.dto
 export class PlantStatusReportsService {
   constructor(
     private readonly prisma: PrismaService,
+    private readonly readOnlyPrisma: ReadOnlyPrismaService,
     private readonly plantsService: PlantsService,
   ) {}
 
   async findByPlant(ownerUserId: string, plantId: string) {
-    await this.plantsService.ensureExists(ownerUserId, plantId);
-    return this.prisma.plantStatusReport.findMany({
+    await this.plantsService.ensureExistsReadOnly(ownerUserId, plantId);
+    return this.readOnlyPrisma.plantStatusReport.findMany({
       where: { ownerUserId, plantId },
       orderBy: { reportMonth: 'desc' },
       include: {
@@ -24,7 +26,7 @@ export class PlantStatusReportsService {
   }
 
   async findOne(ownerUserId: string, plantId: string, id: string) {
-    const report = await this.prisma.plantStatusReport.findFirst({
+    const report = await this.readOnlyPrisma.plantStatusReport.findFirst({
       where: { id, ownerUserId, plantId },
       include: {
         photos: { orderBy: { uploadedAt: 'desc' } },
@@ -88,6 +90,21 @@ export class PlantStatusReportsService {
     id: string,
   ): Promise<void> {
     const report = await this.prisma.plantStatusReport.findFirst({
+      where: { id, ownerUserId, plantId },
+      select: { id: true },
+    });
+
+    if (!report) {
+      throw new NotFoundException('Status report not found');
+    }
+  }
+
+  async ensurePlantReportReadOnly(
+    ownerUserId: string,
+    plantId: string,
+    id: string,
+  ): Promise<void> {
+    const report = await this.readOnlyPrisma.plantStatusReport.findFirst({
       where: { id, ownerUserId, plantId },
       select: { id: true },
     });

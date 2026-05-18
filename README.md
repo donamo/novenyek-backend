@@ -17,6 +17,27 @@ npm run prisma:deploy
 npm run start:dev
 ```
 
+## Database Connections
+
+`DATABASE_URL` points to the primary PostgreSQL database and is used for writes,
+mutations, migrations, and checks that are part of a write flow.
+
+`READONLY_DATABASE_URL` can point to a read-only replica. Independent GraphQL
+queries and read-only REST reads use this connection. If it is empty, the backend
+falls back to `DATABASE_URL`.
+
+## Docker Swarm Deployment
+
+`docker-compose-stack.yml` is a Swarm stack template that runs the published
+GHCR image on the external `swarm-public` network.
+
+Before deploying, replace the image tag, database credentials, Google OAuth
+values, admin email, and OpenAI values:
+
+```bash
+docker stack deploy -c docker-compose-stack.yml novenyek
+```
+
 ## AI Configuration
 
 OpenAI usage is controlled by `AI_PROVIDER`, `AI_MODEL`, and

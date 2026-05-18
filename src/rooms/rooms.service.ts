@@ -1,14 +1,18 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { ReadOnlyPrismaService } from '../prisma/read-only-prisma.service';
 import { CreateRoomDto } from './dto/create-room.dto';
 import { UpdateRoomDto } from './dto/update-room.dto';
 
 @Injectable()
 export class RoomsService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly readOnlyPrisma: ReadOnlyPrismaService,
+  ) {}
 
   findAll(ownerUserId: string) {
-    return this.prisma.room.findMany({
+    return this.readOnlyPrisma.room.findMany({
       where: { ownerUserId },
       orderBy: [{ name: 'asc' }],
       include: { _count: { select: { plants: true } } },
@@ -16,6 +20,19 @@ export class RoomsService {
   }
 
   async findOne(ownerUserId: string, id: string) {
+    const room = await this.readOnlyPrisma.room.findFirst({
+      where: { id, ownerUserId },
+      include: { _count: { select: { plants: true } } },
+    });
+
+    if (!room) {
+      throw new NotFoundException('Room not found');
+    }
+
+    return room;
+  }
+
+  async findOneOnPrimary(ownerUserId: string, id: string) {
     const room = await this.prisma.room.findFirst({
       where: { id, ownerUserId },
       include: { _count: { select: { plants: true } } },

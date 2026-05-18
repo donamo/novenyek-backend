@@ -1,18 +1,22 @@
 import { Injectable } from '@nestjs/common';
 import { PlantsService } from '../plants/plants.service';
 import { PrismaService } from '../prisma/prisma.service';
+import { ReadOnlyPrismaService } from '../prisma/read-only-prisma.service';
 import { UpsertPlantRequirementDto } from './dto/upsert-plant-requirement.dto';
 
 @Injectable()
 export class PlantRequirementsService {
   constructor(
     private readonly prisma: PrismaService,
+    private readonly readOnlyPrisma: ReadOnlyPrismaService,
     private readonly plantsService: PlantsService,
   ) {}
 
   async findByPlant(ownerUserId: string, plantId: string) {
-    await this.plantsService.ensureExists(ownerUserId, plantId);
-    return this.prisma.plantRequirement.findUnique({ where: { plantId } });
+    await this.plantsService.ensureExistsReadOnly(ownerUserId, plantId);
+    return this.readOnlyPrisma.plantRequirement.findUnique({
+      where: { plantId },
+    });
   }
 
   async upsert(

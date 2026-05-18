@@ -8,3 +8,5 @@ uploads
 backend-fejlesztesi-stack-es-iranyelvek.md
 novenynaplo_specifikacio.md
 .env.test
+docker-compose-stack.yml
+CLAUDE.md

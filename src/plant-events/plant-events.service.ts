@@ -2,6 +2,7 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import { PlantEventType } from '@prisma/client';
 import { PlantsService } from '../plants/plants.service';
 import { PrismaService } from '../prisma/prisma.service';
+import { ReadOnlyPrismaService } from '../prisma/read-only-prisma.service';
 import { CreatePlantEventDto } from './dto/create-plant-event.dto';
 import { UpdatePlantEventDto } from './dto/update-plant-event.dto';
 
@@ -9,12 +10,13 @@ import { UpdatePlantEventDto } from './dto/update-plant-event.dto';
 export class PlantEventsService {
   constructor(
     private readonly prisma: PrismaService,
+    private readonly readOnlyPrisma: ReadOnlyPrismaService,
     private readonly plantsService: PlantsService,
   ) {}
 
   async findByPlant(ownerUserId: string, plantId: string) {
-    await this.plantsService.ensureExists(ownerUserId, plantId);
-    return this.prisma.plantEvent.findMany({
+    await this.plantsService.ensureExistsReadOnly(ownerUserId, plantId);
+    return this.readOnlyPrisma.plantEvent.findMany({
       where: { ownerUserId, plantId },
       orderBy: [{ eventDate: 'desc' }, { createdAt: 'desc' }],
     });

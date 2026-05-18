@@ -1,6 +1,7 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { AuthService } from '../auth/auth.service';
 import { PrismaService } from '../prisma/prisma.service';
+import { ReadOnlyPrismaService } from '../prisma/read-only-prisma.service';
 import { UpdateUserEnabledInput } from './dto/update-user-enabled.input';
 import { UserModel } from './models/user.model';
 
@@ -8,11 +9,12 @@ import { UserModel } from './models/user.model';
 export class UsersService {
   constructor(
     private readonly prisma: PrismaService,
+    private readonly readOnlyPrisma: ReadOnlyPrismaService,
     private readonly authService: AuthService,
   ) {}
 
   async findAll(): Promise<UserModel[]> {
-    const users = await this.prisma.user.findMany({
+    const users = await this.readOnlyPrisma.user.findMany({
       orderBy: [{ email: 'asc' }],
     });
 

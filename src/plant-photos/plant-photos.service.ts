@@ -13,6 +13,7 @@ import { PlantEventsService } from '../plant-events/plant-events.service';
 import { PlantStatusReportsService } from '../plant-status-reports/plant-status-reports.service';
 import { PlantsService } from '../plants/plants.service';
 import { PrismaService } from '../prisma/prisma.service';
+import { ReadOnlyPrismaService } from '../prisma/read-only-prisma.service';
 import { CreatePlantPhotoFromBase64Input } from './dto/create-plant-photo-from-base64.input';
 import { UploadPlantPhotoDto } from './dto/upload-plant-photo.dto';
 
@@ -22,6 +23,7 @@ export class PlantPhotosService {
 
   constructor(
     private readonly prisma: PrismaService,
+    private readonly readOnlyPrisma: ReadOnlyPrismaService,
     private readonly config: ConfigService,
     private readonly plantsService: PlantsService,
     private readonly statusReportsService: PlantStatusReportsService,
@@ -146,8 +148,8 @@ export class PlantPhotosService {
   }
 
   async findByPlant(ownerUserId: string, plantId: string) {
-    await this.plantsService.ensureExists(ownerUserId, plantId);
-    return this.prisma.plantPhoto.findMany({
+    await this.plantsService.ensureExistsReadOnly(ownerUserId, plantId);
+    return this.readOnlyPrisma.plantPhoto.findMany({
       where: { ownerUserId, plantId },
       orderBy: { uploadedAt: 'desc' },
     });
@@ -158,12 +160,12 @@ export class PlantPhotosService {
     plantId: string,
     statusReportId: string,
   ) {
-    await this.statusReportsService.ensurePlantReport(
+    await this.statusReportsService.ensurePlantReportReadOnly(
       ownerUserId,
       plantId,
       statusReportId,
     );
-    return this.prisma.plantPhoto.findMany({
+    return this.readOnlyPrisma.plantPhoto.findMany({
       where: { ownerUserId, plantId, statusReportId },
       orderBy: { uploadedAt: 'desc' },
     });
@@ -205,7 +207,7 @@ export class PlantPhotosService {
     photoId: string,
     variant: 'original' | 'thumbnail',
   ): Promise<{ buffer: Buffer; mimeType: string } | null> {
-    const photo = await this.prisma.plantPhoto.findUnique({
+    const photo = await this.readOnlyPrisma.plantPhoto.findUnique({
       where: { id: photoId },
       select: {
         filePath: true,

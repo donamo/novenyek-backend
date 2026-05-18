@@ -23,7 +23,7 @@ ENV NODE_ENV=production
 WORKDIR /app
 
 RUN apt-get update \
-  && apt-get install -y --no-install-recommends openssl \
+  && apt-get install -y --no-install-recommends openssl wget \
   && rm -rf /var/lib/apt/lists/*
 
 COPY package.json package-lock.json ./

@@ -111,6 +111,16 @@ curl -X POST http://localhost:3000/graphql \
   -d '{"query":"{ apiStatus }"}'
 ```
 
+REST health check:
+
+```bash
+curl http://localhost:3000/health
+```
+
+`GET /health` checks the primary and read-only database connections. Its
+response is cached in-process for 3 seconds and returns HTTP 503 when any check
+fails.
+
 ## Step 1 Scope
 
 - NestJS backend scaffold
@@ -123,6 +133,7 @@ curl -X POST http://localhost:3000/graphql \
 
 REST:
 
+- `GET /health`
 - `GET /auth/login/google`
 - `GET /auth/callback/google`
 - `GET /auth/me`
